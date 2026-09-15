@@ -272,7 +272,7 @@ function loadSettings() {
             }, pollInterval * 1000);
         }
     } else {
-        updateBackground(`firefox_bg.jpg`); // Optional fallback background
+        updateBackground(`wallpaper.png`); // Fallback background for new users
     }
 }
 

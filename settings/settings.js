@@ -6,8 +6,6 @@ const logoUrlInput = document.getElementById('logoUrlInput');
 const bookmarkGrid = document.getElementById('bookmarkGrid');
 
 // Wallpaper Selectors
-const bgSyncToggle = document.getElementById('bgSyncToggle');
-const customBgOptions = document.getElementById('customBgOptions');
 const bgUrlInput = document.getElementById('bgUrlInput');
 const bgPollToggle = document.getElementById('bgPollToggle');
 const bgPollIntervalGroup = document.getElementById('bgPollIntervalGroup');
@@ -52,14 +50,6 @@ tabBtns.forEach(btn => {
 
 // --- Wallpaper UI Logic ---
 function updateBgUiState() {
-    if (bgSyncToggle.checked) {
-        customBgOptions.style.opacity = '0.5';
-        customBgOptions.style.pointerEvents = 'none';
-    } else {
-        customBgOptions.style.opacity = '1';
-        customBgOptions.style.pointerEvents = 'auto';
-    }
-
     if (bgPollToggle.checked) {
         bgPollIntervalGroup.style.opacity = '1';
         bgPollIntervalGroup.style.pointerEvents = 'auto';
@@ -68,7 +58,6 @@ function updateBgUiState() {
         bgPollIntervalGroup.style.pointerEvents = 'none';
     }
 }
-bgSyncToggle.addEventListener('change', updateBgUiState);
 bgPollToggle.addEventListener('change', updateBgUiState);
 
 // --- Alias Manager Logic ---
@@ -205,7 +194,6 @@ async function loadFormValues() {
     if (logoUrlInput) logoUrlInput.value = localStorage.getItem('sp_logo') || 'chrome://branding/content/about-logo.png';
 
     // Wallpaper
-    bgSyncToggle.checked = localStorage.getItem('sp_bg_sync') !== 'false';
     bgUrlInput.value = localStorage.getItem('sp_bg_url') || '';
     bgPollToggle.checked = localStorage.getItem('sp_bg_poll') === 'true';
     bgPollIntervalInput.value = localStorage.getItem('sp_bg_poll_interval') || '60';
@@ -222,7 +210,6 @@ saveSettingsBtn.addEventListener('click', () => {
     localStorage.setItem('sp_logo', logoUrlInput.value);
     
     // Wallpaper Settings
-    localStorage.setItem('sp_bg_sync', bgSyncToggle.checked);
     localStorage.setItem('sp_bg_url', bgUrlInput.value);
     localStorage.setItem('sp_bg_poll', bgPollToggle.checked);
     localStorage.setItem('sp_bg_poll_interval', bgPollIntervalInput.value);

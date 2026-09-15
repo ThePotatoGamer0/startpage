@@ -208,16 +208,7 @@
             <div id="wallpaper" class="tab-pane">
                 <div class="pane-title">Wallpaper Configuration</div>
                 
-                <div class="checkbox-group" style="margin-bottom: 24px;">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="bgSyncToggle" checked> Sync Wallpaper with backend?
-                    </label>
-                    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-left: 30px;">
-                        Overrides settings below and listens to Python daemon for live updates.
-                    </div>
-                </div>
-
-                <div id="customBgOptions" style="opacity: 0.5; pointer-events: none; transition: opacity 0.3s; padding-left: 8px; border-left: 2px solid rgba(255,255,255,0.1);">
+                <div id="customBgOptions">
                     <div class="form-group">
                         <label for="bgUrlInput">Custom Wallpaper URL</label>
                         <input type="text" id="bgUrlInput" class="form-input" placeholder="https://example.com/image.jpg">
