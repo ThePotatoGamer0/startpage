@@ -189,7 +189,6 @@
             <button class="tab-btn active" data-tab="general">General</button>
             <button class="tab-btn" data-tab="wallpaper">Wallpaper</button>
             <button class="tab-btn" data-tab="search">Search & Aliases</button>
-            <button class="tab-btn" data-tab="widgets">Widgets</button>
             <button class="tab-btn" data-tab="bookmarks">Bookmarks</button>
         </aside>
 
@@ -274,86 +273,6 @@
                     <input type="text" id="newAliasKey" class="form-input" placeholder="Keyword (e.g. !yt)" style="width: 180px; font-family: monospace;">
                     <input type="text" id="newAliasUrl" class="form-input" placeholder="Target URL (e.g. https://youtube.com/results?search_query=%s)">
                     <button id="addAliasBtn" class="btn btn-primary" type="button" style="padding: 14px 28px;">Add</button>
-                </div>
-            </div>
-
-            <div id="widgets" class="tab-pane">
-                <div class="pane-title">Widget Configuration</div>
-
-                <div class="pane-subtitle">Media Player</div>
-                <div class="form-group">
-                    <label for="mediaPosSelect">Widget Position</label>
-                    <select id="mediaPosSelect" class="form-select">
-                        <option value="disabled">Disabled</option>
-                        <option value="top-left">Top Left</option>
-                        <option value="top-right">Top Right</option>
-                        <option value="bottom-left">Bottom Left</option>
-                        <option value="center">Center (Below Bookmarks)</option>
-                        <option value="drawer-left">Off-Canvas Drawer (Left)</option>
-                        <option value="drawer-right">Off-Canvas Drawer (Right)</option>
-                    </select>
-                </div>
-
-                <div class="pane-subtitle">System Monitor</div>
-                <div class="form-group">
-                    <label for="sysWidgetStyleSelect">Widget Aesthetic Style</label>
-                    <select id="sysWidgetStyleSelect" class="form-select">
-                        <option value="style-circular">Circular Rings (Grid)</option>
-                        <option value="style-linear">Linear Progress Bars (Grid)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="sysPosSelect">Widget Position</label>
-                    <select id="sysPosSelect" class="form-select">
-                        <option value="disabled">Disabled</option>
-                        <option value="top-left">Top Left</option>
-                        <option value="top-right">Top Right</option>
-                        <option value="bottom-left">Bottom Left</option>
-                        <option value="bottom-right">Bottom Right</option>
-                        <option value="drawer-left">Off-Canvas Drawer (Left)</option>
-                        <option value="drawer-right">Off-Canvas Drawer (Right)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="sysTempUnitSelect">Temperature Unit</label>
-                    <select id="sysTempUnitSelect" class="form-select">
-                        <option value="C">Celsius (°C)</option>
-                        <option value="F">Fahrenheit (°F)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="sysStorageBaseSelect">Storage Unit Base</label>
-                    <select id="sysStorageBaseSelect" class="form-select">
-                        <option value="1024">Binary (1024 - GiB / MiB)</option>
-                        <option value="1000">Decimal (1000 - GB / MB)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="sysNetworkUnitSelect">Network Speed Unit</label>
-                    <select id="sysNetworkUnitSelect" class="form-select">
-                        <option value="MBps">Megabytes per second (MB/s)</option>
-                        <option value="Mbps">Megabits per second (Mbps)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Visible Components</label>
-                    <div class="checkbox-group" id="sysComponentToggles">
-                        <div style="color: rgba(255,255,255,0.5); font-size: 0.9rem;">Connecting to backend to load components...</div>
-                    </div>
-                </div>
-
-                <div class="pane-subtitle">Clipboard Manager</div>
-                <div class="form-group">
-                    <label for="clipPosSelect">Widget Position</label>
-                    <select id="clipPosSelect" class="form-select">
-                        <option value="disabled">Disabled</option>
-                        <option value="top-left">Top Left</option>
-                        <option value="top-right">Top Right</option>
-                        <option value="bottom-left">Bottom Left</option>
-                        <option value="bottom-right">Bottom Right</option>
-                        <option value="drawer-left">Off-Canvas Drawer (Left)</option>
-                        <option value="drawer-right">Off-Canvas Drawer (Right)</option>
-                    </select>
                 </div>
             </div>
 

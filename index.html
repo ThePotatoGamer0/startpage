@@ -133,103 +133,6 @@
         .bookmark-item:hover { transform: translateY(-4px); background: rgba(30, 30, 40, 0.6); border-color: rgba(255, 255, 255, 0.3); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
         .bookmark-item img { width: 28px; height: 28px; object-fit: contain; border-radius: 6px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
 
-        .media-player {
-            display: flex; width: 280px; height: 140px; background: rgba(30, 30, 40, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 24px;
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); overflow: hidden;
-            transition: opacity 0.4s ease, transform 0.4s ease; z-index: 50; color: white;
-            padding: 16px; box-sizing: border-box; gap: 16px; align-items: center;
-        }
-        .media-player.hidden { opacity: 0 !important; pointer-events: none; transform: translateY(10px) scale(0.95); }
-        .media-player.pos-center { position: relative; margin-top: 32px; }
-        .media-player.pos-top-left { position: fixed; top: 24px; left: 24px; }
-        .media-player.pos-top-right { position: fixed; top: 24px; right: 24px; }
-        .media-player.pos-bottom-left { position: fixed; bottom: 24px; left: 24px; }
-
-        .media-art { width: 106px; height: 106px; background-color: rgba(0, 0, 0, 0.3); background-size: cover; background-position: center; border-radius: 12px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        .media-body { display: flex; flex-direction: column; justify-content: center; flex-grow: 1; overflow: hidden; }
-        .media-title { font-size: 1rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
-        .media-artist { font-size: 0.8rem; color: rgba(255, 255, 255, 0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .media-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding: 0 4px; }
-        .media-btn { background: rgba(255, 255, 255, 0.1); border: none; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; padding: 0; }
-        .media-btn:hover { background: rgba(255, 255, 255, 0.25); transform: scale(1.1); }
-        .media-btn svg { width: 14px; height: 14px; fill: white; }
-
-        .system-monitor {
-            background: rgba(30, 30, 40, 0.5); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 24px; padding: 24px; width: max-content;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3); color: white; z-index: 50;
-            transition: opacity 0.4s ease, transform 0.4s ease; box-sizing: border-box;
-        }
-        .system-monitor.hidden { opacity: 0 !important; pointer-events: none; transform: translateY(10px) scale(0.95); }
-        .system-monitor.pos-top-left { position: fixed; top: 24px; left: 24px; }
-        .system-monitor.pos-top-right { position: fixed; top: 24px; right: 24px; }
-        .system-monitor.pos-bottom-left { position: fixed; bottom: 24px; left: 24px; }
-        .system-monitor.pos-bottom-right { position: fixed; bottom: 84px; right: 24px; }
-
-        .sys-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-        .sys-box { position: relative; display: flex; flex-direction: column; background: rgba(0, 0, 0, 0.2); transition: all 0.3s ease; }
-        .sys-inner { display: flex; flex-direction: column; z-index: 2; width: 100%; box-sizing: border-box;}
-        .sys-icon { display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); color: rgba(255,255,255,0.8); }
-        .sys-label-wrapper { width: 100%; overflow: hidden; margin: 0 auto; white-space: nowrap; }
-        .sys-label { display: flex; width: max-content; color: rgba(255,255,255,0.6); font-weight: bold; letter-spacing: 0.5px; }
-        .sys-label span { padding-right: 16px; }
-        .sys-label.center-text { width: 100%; justify-content: center; }
-        .sys-label.center-text span { padding-right: 0; }
-        .sys-label.marquee { animation: marquee 5s linear infinite; }
-        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        .sys-val { font-weight: bold; white-space: nowrap; transition: color 0.5s ease; }
-        .sys-subval { color: rgba(255,255,255,0.7); white-space: nowrap; }
-
-        .system-monitor.style-circular .sys-box { width: 105px; height: 105px; border-radius: 50%; align-items: center; justify-content: center; padding: 0; }
-        .system-monitor.style-circular .sys-ring-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
-        .system-monitor.style-circular .sys-ring-bg { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 8; }
-        .system-monitor.style-circular .sys-ring-fill { fill: none; stroke-width: 8; stroke-linecap: round; stroke-dasharray: 282.74; transition: stroke-dashoffset 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), stroke 0.5s ease; }
-        .system-monitor.style-circular .sys-line { display: none; }
-        .system-monitor.style-circular .sys-inner { align-items: center; justify-content: center; text-align: center; }
-        .system-monitor.style-circular .sys-svg { width: 18px; height: 18px; margin-bottom: 2px; }
-        .system-monitor.style-circular .sys-label-wrapper { max-width: 70px; -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 15%, black 85%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0%, black 15%, black 85%, transparent 100%); }
-        .system-monitor.style-circular .sys-label { font-size: 0.65rem; }
-        .system-monitor.style-circular .sys-val { font-size: 0.85rem; margin-top: 2px; }
-        .system-monitor.style-circular .sys-subval { font-size: 0.7rem; }
-
-        .system-monitor.style-linear .sys-box { width: 120px; height: 85px; border-radius: 16px; padding: 12px; justify-content: space-between; align-items: flex-start; }
-        .system-monitor.style-linear .sys-ring-svg { display: none; }
-        .system-monitor.style-linear .sys-line { display: block; width: 100%; height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 100px; overflow: hidden; }
-        .system-monitor.style-linear .sys-line-fill { height: 100%; border-radius: 100px; transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
-        .system-monitor.style-linear .sys-inner { align-items: flex-start; justify-content: flex-start; text-align: left; position: relative;}
-        .system-monitor.style-linear .sys-icon { position: absolute; top: -6px; right: -6px; opacity: 0.15; }
-        .system-monitor.style-linear .sys-svg { width: 36px; height: 36px; }
-        .system-monitor.style-linear .sys-label-wrapper { max-width: 90px; -webkit-mask-image: linear-gradient(90deg, black 80%, transparent 100%); mask-image: linear-gradient(90deg, black 80%, transparent 100%); }
-        .system-monitor.style-linear .sys-label { font-size: 0.7rem; }
-        .system-monitor.style-linear .sys-label.center-text { justify-content: flex-start; }
-        .system-monitor.style-linear .sys-val { font-size: 0.95rem; margin-top: 4px; z-index: 5;}
-        .system-monitor.style-linear .sys-subval { font-size: 0.7rem; z-index: 5;}
-
-        .clipboard-widget {
-            background: rgba(30, 30, 40, 0.5); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 24px; padding: 20px; width: 280px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3); color: white; z-index: 50;
-            transition: opacity 0.4s ease, transform 0.4s ease; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px;
-        }
-        .clipboard-widget.hidden { opacity: 0 !important; pointer-events: none; transform: translateY(10px) scale(0.95); }
-        .clipboard-widget.pos-top-left { position: fixed; top: 24px; left: 24px; }
-        .clipboard-widget.pos-top-right { position: fixed; top: 24px; right: 24px; }
-        .clipboard-widget.pos-bottom-left { position: fixed; bottom: 24px; left: 24px; }
-        .clipboard-widget.pos-bottom-right { position: fixed; bottom: 84px; right: 24px; }
-
-        .clip-header { font-size: 0.75rem; font-weight: bold; color: rgba(255,255,255,0.6); display: flex; align-items: center; gap: 8px; letter-spacing: 1px; }
-        .clip-item {
-            background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); padding: 12px 16px; 
-            border-radius: 12px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; 
-            white-space: nowrap; text-overflow: ellipsis; overflow: hidden; position: relative;
-        }
-        .clip-item:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.4); transform: translateX(4px); }
-        .clip-item:active { transform: scale(0.98); }
-        .clip-item .copy-badge { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); opacity: 0; color: #4ade80; font-weight: bold; transition: opacity 0.2s ease; }
-        .clip-item.copied .copy-badge { opacity: 1; }
-
         .settings-btn {
             position: fixed; bottom: 24px; right: 24px; width: 44px; height: 44px;
             background: rgba(30, 30, 40, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 50%;
@@ -239,29 +142,11 @@
         }
         .settings-btn:hover { background: rgba(30, 30, 40, 0.7); transform: rotate(45deg); }
         .settings-btn svg { width: 22px; height: 22px; fill: #ffffff; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
-
-        .drawer-trigger { position: fixed; top: 0; width: 20px; height: 100vh; z-index: 100; }
-        .trigger-left { left: 0; }
-        .trigger-right { right: 0; }
-
-        .drawer {
-            position: fixed; top: 0; height: 100vh; width: 380px;
-            background: rgba(20, 20, 25, 0.6); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-            border-left: 1px solid rgba(255,255,255,0.05); border-right: 1px solid rgba(255,255,255,0.05);
-            z-index: 90; display: flex; flex-direction: column; padding: 40px 24px; gap: 24px; box-sizing: border-box;
-            transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); overflow-y: auto; overflow-x: hidden; box-shadow: 0 0 50px rgba(0,0,0,0.5);
-        }
-        .drawer-left { left: 0; transform: translateX(-100%); }
-        .drawer-right { right: 0; transform: translateX(100%); }
-        .drawer-left.open { transform: translateX(0); }
-        .drawer-right.open { transform: translateX(0); }
-        .drawer .media-player, .drawer .system-monitor, .drawer .clipboard-widget { position: relative; top: auto; bottom: auto; left: auto; right: auto; margin-top: 0; transform: none; width: 100%; }
-        .drawer .sys-grid { grid-template-columns: repeat(2, 1fr); }
     </style>
 </head>
 <body>
 
-    <div id="bg1" class="bg-layer active" style="background-image: url('firefox_bg.jpg');"></div>
+    <div id="bg1" class="bg-layer active"></div>
     <div id="bg2" class="bg-layer"></div>
 
     <div class="content">
@@ -290,42 +175,11 @@
             </div>
             
             <div id="suggestionsDropdown" class="suggestions-dropdown">
-                </div>
+            </div>
         </form>
 
         <div id="bookmarksContainer" class="bookmarks-container"></div>
     </div>
-
-    <div id="mediaPlayer" class="media-player hidden">
-        <div class="media-art" id="mediaArt"></div>
-        <div class="media-body">
-            <div class="media-title" id="mediaTitle">No Media Playing</div>
-            <div class="media-artist" id="mediaArtist">---</div>
-            <div class="media-controls">
-                <button id="mediaPrev" class="media-btn" title="Previous"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
-                <button id="mediaPlayPause" class="media-btn" title="Play/Pause"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-                <button id="mediaNext" class="media-btn" title="Next"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
-            </div>
-        </div>
-    </div>
-
-    <div id="systemMonitor" class="system-monitor hidden style-circular">
-        <div id="sysGrid" class="sys-grid"></div>
-    </div>
-
-    <div id="clipboardWidget" class="clipboard-widget hidden">
-        <div class="clip-header">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
-            CLIPBOARD HISTORY
-        </div>
-        <div id="clipContainer" style="display: flex; flex-direction: column; gap: 8px;"></div>
-    </div>
-
-    <div class="drawer-trigger trigger-left"></div>
-    <div class="drawer-trigger trigger-right"></div>
-    
-    <div id="drawerLeft" class="drawer drawer-left"></div>
-    <div id="drawerRight" class="drawer drawer-right"></div>
 
     <a href="/settings" class="settings-btn" title="Startpage Settings">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">

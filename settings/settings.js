@@ -3,18 +3,7 @@ const defaultProviderSelect = document.getElementById('defaultProviderSelect');
 const searchSuggestionSelect = document.getElementById('searchSuggestionSelect');
 const blurInput = document.getElementById('blurInput');
 const logoUrlInput = document.getElementById('logoUrlInput');
-const mediaPosSelect = document.getElementById('mediaPosSelect');
 const bookmarkGrid = document.getElementById('bookmarkGrid');
-
-// System Widget Selectors
-const sysPosSelect = document.getElementById('sysPosSelect');
-const sysWidgetStyleSelect = document.getElementById('sysWidgetStyleSelect');
-const sysTempUnitSelect = document.getElementById('sysTempUnitSelect');
-const sysStorageBaseSelect = document.getElementById('sysStorageBaseSelect');
-const sysNetworkUnitSelect = document.getElementById('sysNetworkUnitSelect');
-
-// Clipboard Widget Selector
-const clipPosSelect = document.getElementById('clipPosSelect');
 
 // Wallpaper Selectors
 const bgSyncToggle = document.getElementById('bgSyncToggle');
@@ -82,7 +71,6 @@ function updateBgUiState() {
 bgSyncToggle.addEventListener('change', updateBgUiState);
 bgPollToggle.addEventListener('change', updateBgUiState);
 
-
 // --- Alias Manager Logic ---
 function renderAliases() {
     const grid = document.getElementById('aliasGrid');
@@ -120,7 +108,6 @@ document.getElementById('addAliasBtn').addEventListener('click', () => {
     }
 });
 
-
 // --- Right Click Clear Logic ---
 window.clearIconRightClick = function(event, card) {
     event.preventDefault();
@@ -151,22 +138,6 @@ function handleUrlChange(card, value) {
     } else {
         mainImg.src = faviconUrl; refImg.style.display = 'none';
     }
-}
-
-// --- Utility: Safe GPU Name formatter ---
-function shortenGpuName(name) {
-    if (!name || typeof name !== 'string') return 'GPU';
-    
-    let cleanName = name.replace(/ADVANCED MICRO DEVICES, INC\./i, 'AMD').replace(/\[AMD\/ATI\]/i, '');
-    cleanName = cleanName.replace(/NVIDIA/i, '').replace(/GeForce/i, '');
-    cleanName = cleanName.replace(/\s+/g, ' ').trim();
-    
-    const upper = cleanName.toUpperCase();
-    if ((upper.includes('RAPHAEL') || upper.includes('RADEON')) && !upper.startsWith('AMD')) { cleanName = 'AMD ' + cleanName; } 
-    else if ((upper.includes('RTX') || upper.includes('GTX')) && !upper.startsWith('NVIDIA')) { cleanName = 'NVIDIA ' + cleanName; }
-    
-    if (cleanName.length > 24) cleanName = cleanName.substring(0, 22) + '..';
-    return cleanName;
 }
 
 // --- Build Bookmark Cards & Initialize SortableJS ---
@@ -220,57 +191,6 @@ function buildBookmarkCards() {
     });
 }
 
-// --- Fetch Dynamic Components ---
-async function loadSystemToggles() {
-    const toggleContainer = document.getElementById('sysComponentToggles');
-    if (!toggleContainer) return;
-    
-    try {
-        const res = await fetch('/api/heartbeat');
-        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-        
-        const data = await res.json();
-        if (!data || typeof data !== 'object') throw new Error("Invalid Data Object");
-
-        const sys = data.system || {};
-        
-        let html = '';
-        const addToggle = (key, label) => {
-            const isChecked = localStorage.getItem(key) !== 'false';
-            html += `<label class="checkbox-label">
-                <input type="checkbox" class="sys-toggle-item" data-key="${key}" ${isChecked ? 'checked' : ''}> ${label}
-            </label>`;
-        };
-
-        addToggle('sp_sys_show_cpu', 'CPU & Temperature');
-        
-        if (Array.isArray(sys.gpu)) {
-            sys.gpu.forEach((g, idx) => {
-                const safeName = g && g.name ? g.name : `GPU ${idx + 1}`;
-                addToggle(`sp_sys_show_gpu_${idx}`, `GPU ${idx + 1}: ${shortenGpuName(safeName).toUpperCase()}`);
-            });
-        }
-        
-        addToggle('sp_sys_show_ram', 'RAM Usage');
-        addToggle('sp_sys_show_disk', 'Disk Storage (/)');
-        addToggle('sp_sys_show_net_down', 'Network Download');
-        addToggle('sp_sys_show_net_up', 'Network Upload');
-
-        toggleContainer.innerHTML = html;
-        
-    } catch (e) {
-        console.error("System Toggle Load Error:", e);
-        toggleContainer.innerHTML = `
-            <div style="color: #ff5555; font-size: 0.9rem; margin-bottom: 8px;">
-                <strong>Error loading system components.</strong>
-            </div>
-            <div style="color: rgba(255,255,255,0.6); font-size: 0.8rem; font-family: monospace; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px;">
-                ${e.name}: ${e.message}
-            </div>
-        `;
-    }
-}
-
 // --- Load/Save Settings ---
 async function loadFormValues() {
     try {
@@ -283,25 +203,15 @@ async function loadFormValues() {
     
     if (blurInput) blurInput.value = localStorage.getItem('sp_blur') || '0';
     if (logoUrlInput) logoUrlInput.value = localStorage.getItem('sp_logo') || 'chrome://branding/content/about-logo.png';
-    if (mediaPosSelect) mediaPosSelect.value = localStorage.getItem('sp_media_pos') || 'disabled';
-
-    if (sysPosSelect) sysPosSelect.value = localStorage.getItem('sp_sys_pos') || 'disabled';
-    if (sysWidgetStyleSelect) sysWidgetStyleSelect.value = localStorage.getItem('sp_sys_style') || 'style-circular';
-    if (sysTempUnitSelect) sysTempUnitSelect.value = localStorage.getItem('sp_sys_temp') || 'C';
-    if (sysStorageBaseSelect) sysStorageBaseSelect.value = localStorage.getItem('sp_sys_storage') || '1024';
-    if (sysNetworkUnitSelect) sysNetworkUnitSelect.value = localStorage.getItem('sp_sys_net') || 'MBps';
-
-    if (clipPosSelect) clipPosSelect.value = localStorage.getItem('sp_clip_pos') || 'top-right';
 
     // Wallpaper
-    bgSyncToggle.checked = localStorage.getItem('sp_bg_sync') !== 'false'; // Defaults to true
+    bgSyncToggle.checked = localStorage.getItem('sp_bg_sync') !== 'false';
     bgUrlInput.value = localStorage.getItem('sp_bg_url') || '';
     bgPollToggle.checked = localStorage.getItem('sp_bg_poll') === 'true';
     bgPollIntervalInput.value = localStorage.getItem('sp_bg_poll_interval') || '60';
     updateBgUiState();
 
     renderAliases();
-    loadSystemToggles();
     buildBookmarkCards();
 }
 
@@ -310,7 +220,6 @@ saveSettingsBtn.addEventListener('click', () => {
     localStorage.setItem('sp_search_suggestions', searchSuggestionSelect.value);
     localStorage.setItem('sp_blur', blurInput.value);
     localStorage.setItem('sp_logo', logoUrlInput.value);
-    localStorage.setItem('sp_media_pos', mediaPosSelect.value);
     
     // Wallpaper Settings
     localStorage.setItem('sp_bg_sync', bgSyncToggle.checked);
@@ -320,18 +229,6 @@ saveSettingsBtn.addEventListener('click', () => {
 
     // Save Aliases
     localStorage.setItem('sp_aliases', JSON.stringify(searchAliases));
-
-    if (sysPosSelect) localStorage.setItem('sp_sys_pos', sysPosSelect.value);
-    if (sysWidgetStyleSelect) localStorage.setItem('sp_sys_style', sysWidgetStyleSelect.value);
-    if (sysTempUnitSelect) localStorage.setItem('sp_sys_temp', sysTempUnitSelect.value);
-    if (sysStorageBaseSelect) localStorage.setItem('sp_sys_storage', sysStorageBaseSelect.value);
-    if (sysNetworkUnitSelect) localStorage.setItem('sp_sys_net', sysNetworkUnitSelect.value);
-
-    if (clipPosSelect) localStorage.setItem('sp_clip_pos', clipPosSelect.value);
-
-    document.querySelectorAll('.sys-toggle-item').forEach(checkbox => {
-        localStorage.setItem(checkbox.getAttribute('data-key'), checkbox.checked);
-    });
 
     const cards = document.querySelectorAll('.bm-card');
     cards.forEach((card, index) => {
