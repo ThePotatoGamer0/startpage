@@ -248,46 +248,64 @@ async function pollAndApplyCustomWallpaper(url, isPolled) {
 // --- Browser Detection Logic ---
 async function getBrowserLogo() {
     const ua = navigator.userAgent;
+    let brands = [];
     
-    // Firefox & forks
-    if (ua.includes("Firefox") || ua.includes("FxiOS") || ua.includes("LibreWolf")) {
-        return "chrome://branding/content/about-logo.png";
+    // Modern Chromium browsers expose their true brands here
+    if (navigator.userAgentData && navigator.userAgentData.brands) {
+        brands = navigator.userAgentData.brands.map(b => b.brand);
     }
-    // Brave
+
+    // 1. Vivaldi (Checks modern brands or legacy window injection)
+    if (brands.includes("Vivaldi") || window.vivaldi) {
+        return "browserlogos/vivaldi.svg";
+    }
+    
+    // 2. Brave
     if (navigator.brave && await navigator.brave.isBrave()) {
         return "browserlogos/brave.svg";
     }
-    // Opera GX
+    
+    // 3. Firefox, Tor, & Forks (Tor will still block the image render for security)
+    if (ua.includes("Firefox") || ua.includes("FxiOS") || ua.includes("LibreWolf")) {
+        return "chrome://branding/content/about-logo.png";
+    }
+    
+    // 4. Opera GX
     if (ua.includes("Edition GX") || ua.includes("OPRGX")) {
         return "browserlogos/opera-gx.svg";
     }
-    // Opera Standard
-    if (ua.includes("OPR/") || ua.includes("Opera")) {
+    
+    // 5. Opera Standard
+    if (ua.includes("OPR/") || ua.includes("Opera") || brands.includes("Opera")) {
         return "browserlogos/opera.svg";
     }
-    // Vivaldi
-    if (ua.includes("Vivaldi")) {
-        return "browserlogos/vivaldi.svg";
-    }
-    // Edge
-    if (ua.includes("Edg/")) {
+    
+    // 6. Edge
+    if (ua.includes("Edg/") || brands.includes("Microsoft Edge")) {
         return "browserlogos/edge.svg";
     }
-    // Samsung Internet
-    if (ua.includes("SamsungBrowser")) {
+    
+    // 7. Samsung Internet
+    if (ua.includes("SamsungBrowser") || brands.includes("Samsung Internet")) {
         return "browserlogos/samsung-internet.svg";
     }
-    // Safari
-    if (ua.includes("Safari") && !ua.includes("Chrome")) {
+    
+    // 8. Safari
+    if (ua.includes("Safari") && !ua.includes("Chrome") && !ua.includes("Chromium")) {
         return "browserlogos/safari.svg";
     }
-    // Chrome vs Chromium Catch-All
+    
+    // 9. Chrome vs Raw Chromium
+    if (brands.includes("Google Chrome")) {
+        return "browserlogos/chrome.svg";
+    }
+    if (brands.includes("Chromium")) {
+        return "browserlogos/chromium.svg";
+    }
+    
+    // Fallback for older Chromium that lacks userAgentData
     if (ua.includes("Chrome")) {
-        if (navigator.vendor === "Google Inc.") {
-            return "browserlogos/chrome.svg";
-        } else {
-            return "browserlogos/chromium.svg";
-        }
+        return "browserlogos/chromium.svg";
     }
     
     // Ultimate Fallback
