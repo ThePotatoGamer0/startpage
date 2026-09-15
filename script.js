@@ -245,12 +245,66 @@ async function pollAndApplyCustomWallpaper(url, isPolled) {
     updateBackground(finalImageUrl);
 }
 
+// --- Browser Detection Logic ---
+async function getBrowserLogo() {
+    const ua = navigator.userAgent;
+    
+    // Firefox & forks
+    if (ua.includes("Firefox") || ua.includes("FxiOS") || ua.includes("LibreWolf")) {
+        return "chrome://branding/content/about-logo.png";
+    }
+    // Brave
+    if (navigator.brave && await navigator.brave.isBrave()) {
+        return "browserlogos/brave.svg";
+    }
+    // Opera GX
+    if (ua.includes("Edition GX") || ua.includes("OPRGX")) {
+        return "browserlogos/opera-gx.svg";
+    }
+    // Opera Standard
+    if (ua.includes("OPR/") || ua.includes("Opera")) {
+        return "browserlogos/opera.svg";
+    }
+    // Vivaldi
+    if (ua.includes("Vivaldi")) {
+        return "browserlogos/vivaldi.svg";
+    }
+    // Edge
+    if (ua.includes("Edg/")) {
+        return "browserlogos/edge.svg";
+    }
+    // Samsung Internet
+    if (ua.includes("SamsungBrowser")) {
+        return "browserlogos/samsung-internet.svg";
+    }
+    // Safari
+    if (ua.includes("Safari") && !ua.includes("Chrome")) {
+        return "browserlogos/safari.svg";
+    }
+    // Chrome vs Chromium Catch-All
+    if (ua.includes("Chrome")) {
+        if (navigator.vendor === "Google Inc.") {
+            return "browserlogos/chrome.svg";
+        } else {
+            return "browserlogos/chromium.svg";
+        }
+    }
+    
+    // Ultimate Fallback
+    return "browserlogos/chromium.svg";
+}
+
 const mainLogo = document.getElementById('mainLogo');
 
-function loadSettings() {
+async function loadSettings() {
     const savedProvider = localStorage.getItem('sp_provider') || 'startpage';
     const savedBlur = localStorage.getItem('sp_blur') || '0';
-    const savedLogo = localStorage.getItem('sp_logo') || 'chrome://branding/content/about-logo.png';
+    
+    // Auto-detect logo if user hasn't explicitly saved one
+    let savedLogo = localStorage.getItem('sp_logo');
+    if (!savedLogo) {
+        savedLogo = await getBrowserLogo();
+    }
 
     setActiveProvider(savedProvider);
     bg1.style.filter = `blur(${savedBlur}px)`; bg2.style.filter = `blur(${savedBlur}px)`;
@@ -272,7 +326,7 @@ function loadSettings() {
             }, pollInterval * 1000);
         }
     } else {
-        updateBackground(`wallpaper.png`); // Fallback background for new users
+        updateBackground(`wallpaper.png`); 
     }
 }
 
