@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - New Tab</title>
+    <link rel="icon" type="image/png" href="chrome://branding/content/about-logo.png">
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100vh;
+            background-color: #0f0f13; color: white;
+            font-family: 'Google Sans Flex', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+        }
+
+        .settings-layout { display: flex; width: 100%; height: 100vh; overflow: hidden; }
+
+        .sidebar {
+            width: 250px; background: rgba(20, 20, 25, 0.95);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px 20px; display: flex; flex-direction: column; gap: 10px;
+            overflow-y: auto; height: 100%; box-sizing: border-box;
+        }
+
+        .sidebar-header { font-size: 1.5rem; font-weight: bold; margin-bottom: 30px; padding-left: 15px; color: #fff; }
+
+        .tab-btn {
+            background: transparent; border: none; color: rgba(255, 255, 255, 0.6);
+            text-align: left; padding: 15px 20px; font-size: 1.05rem; border-radius: 12px;
+            cursor: pointer; transition: all 0.2s ease; font-family: inherit; font-weight: 500;
+        }
+
+        .tab-btn:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+        .tab-btn.active { background: rgba(255, 255, 255, 0.1); color: #fff; font-weight: bold; }
+
+        .main-content {
+            flex: 1; padding: 40px 60px; 
+            background: linear-gradient(135deg, rgba(30, 30, 40, 0.4) 0%, rgba(15, 15, 20, 0.8) 100%);
+            padding-bottom: 120px; overflow-y: auto; height: 100%; box-sizing: border-box;
+        }
+
+        .tab-pane { display: none; max-width: 1000px; animation: fadeIn 0.3s ease; }
+        .tab-pane.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .pane-title {
+            font-size: 2rem; font-weight: bold; margin-bottom: 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 15px;
+        }
+        
+        .pane-subtitle {
+            font-size: 1.4rem; font-weight: bold; margin-top: 40px; margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 10px; color: #ddd;
+        }
+        .pane-subtitle:first-of-type { margin-top: 0; }
+
+        .form-group { display: flex; flex-direction: column; margin-bottom: 24px; max-width: 600px;}
+        .form-group label { margin-bottom: 8px; font-size: 0.95rem; color: rgba(255, 255, 255, 0.9); }
+
+        .form-input, .form-select {
+            background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15);
+            color: white; padding: 14px; border-radius: 12px; font-family: inherit; font-size: 1rem;
+            outline: none; transition: border-color 0.2s, box-shadow 0.2s; width: 100%; box-sizing: border-box;
+        }
+
+        .form-input:focus, .form-select:focus { 
+            border-color: rgba(255, 255, 255, 0.5); box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+        .form-select option { background: #1e1e28; color: white; }
+
+        .checkbox-group {
+            display: flex; flex-direction: column; gap: 12px;
+            background: rgba(0, 0, 0, 0.2); padding: 16px; 
+            border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .checkbox-label {
+            display: flex; align-items: center; gap: 12px;
+            color: white; cursor: pointer; font-size: 0.95rem; transition: opacity 0.2s;
+        }
+        .checkbox-label:hover { opacity: 0.8; }
+        .checkbox-label input { width: 18px; height: 18px; accent-color: #fff; cursor: pointer; }
+
+        /* Alias Manager Styles */
+        .alias-grid { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; max-width: 800px; }
+        .alias-row { 
+            display: flex; gap: 16px; align-items: center; background: rgba(0,0,0,0.3); 
+            padding: 10px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); 
+            transition: border-color 0.2s;
+        }
+        .alias-row:hover { border-color: rgba(255,255,255,0.3); }
+        .alias-kw { width: 120px; font-weight: bold; color: #4ade80; font-family: monospace; font-size: 1.05rem; }
+        .alias-url { flex: 1; color: rgba(255,255,255,0.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem;}
+        .alias-del { 
+            cursor: pointer; color: #ff5555; background: none; border: none; 
+            font-weight: bold; font-size: 1.5rem; opacity: 0.6; transition: opacity 0.2s; padding: 0 8px;
+        }
+        .alias-del:hover { opacity: 1; }
+
+        .bookmark-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px; position: relative; }
+        
+        .bm-card {
+            background: rgba(255,255,255,0.03); border-radius: 16px; 
+            border: 1px solid rgba(255, 255, 255, 0.05); overflow: hidden;
+            display: flex; flex-direction: column; cursor: grab; transition: box-shadow 0.2s ease;
+        }
+        
+        .sortable-ghost { opacity: 0.3; background: rgba(255, 255, 255, 0.05); }
+        .sortable-drag {
+            cursor: grabbing !important; opacity: 0.9 !important; box-shadow: 0 30px 60px rgba(0,0,0,0.6) !important;
+            transform: scale(1.05) rotate(3deg) !important; transform-origin: top center; z-index: 9999 !important;
+        }
+
+        .bm-logo-container { height: 120px; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; }
+        .bm-logo-container img.bm-main-img { width: 56px; height: 56px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); transition: opacity 0.2s ease; }
+        .bm-favicon-reference {
+            position: absolute; bottom: 10px; left: 10px; width: 20px; height: 20px; object-fit: contain;
+            border-radius: 6px; background: rgba(255, 255, 255, 0.1); padding: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            transition: opacity 0.2s ease; z-index: 5;
+        }
+        .bm-logo-overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.2s ease; backdrop-filter: blur(2px); z-index: 10;
+        }
+        .bm-logo-container:hover .bm-logo-overlay { opacity: 1; }
+        .bm-logo-container:hover img.bm-main-img, .bm-logo-container:hover .bm-favicon-reference { opacity: 0.2; }
+        .bm-logo-overlay svg { width: 32px; height: 32px; fill: white; }
+
+        .bm-inputs { padding: 20px; flex: 1;}
+        .bm-inputs label { font-size: 0.9rem; color: #bbb; display: block; margin-bottom: 8px; font-weight: bold; cursor: grab;}
+        .bm-inputs input { 
+            width: 100%; border: none; background: rgba(0, 0, 0, 0.3); color: white; font-size: 0.9rem; outline: none; padding: 12px;
+            border-radius: 8px; border: 1px solid transparent; transition: border 0.2s ease; box-sizing: border-box; cursor: text;
+        }
+        .bm-inputs input:focus { border: 1px solid rgba(255,255,255,0.3); }
+
+        .action-bar { 
+            position: fixed; bottom: 40px; right: 60px; display: flex; gap: 16px; 
+            background: rgba(20, 20, 25, 0.8); padding: 15px 25px; border-radius: 100px;
+            backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 100;
+        }
+
+        .btn {
+            background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: white; padding: 12px 28px; border-radius: 50px; cursor: pointer;
+            font-weight: bold; transition: all 0.2s; font-family: inherit; font-size: 1rem; text-decoration: none; display: flex; align-items: center; justify-content: center;
+        }
+        .btn:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-2px); }
+        .btn-primary { background: white; color: black; border: none; }
+        .btn-primary:hover { background: #e0e0e0; box-shadow: 0 4px 15px rgba(255,255,255,0.2); }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center;
+            z-index: 200; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.show { opacity: 1; visibility: visible; }
+        .modal-content {
+            background: rgba(25, 25, 32, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 20px; padding: 32px; width: 90%; max-width: 500px; max-height: 85vh;
+            display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); transform: translateY(20px); transition: transform 0.3s ease;
+        }
+        .modal-overlay.show .modal-content { transform: translateY(0); }
+        .modal-header { font-size: 1.5rem; margin-bottom: 24px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;}
+        
+        .icon-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 12px; max-height: 300px; overflow-y: auto; padding: 10px 0;
+            margin-bottom: 20px; border-top: 1px solid rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .icon-grid::-webkit-scrollbar { width: 8px; }
+        .icon-grid::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); border-radius: 10px; }
+        .icon-grid::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+        
+        .icon-item {
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; height: 60px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s ease; padding: 14px; box-sizing: border-box;
+        }
+        .icon-item:hover, .icon-item.selected { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.6); transform: scale(1.05); }
+        .icon-item img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 12px; }
+    </style>
+</head>
+<body>
+    <div class="settings-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">Settings</div>
+            <button class="tab-btn active" data-tab="general">General</button>
+            <button class="tab-btn" data-tab="wallpaper">Wallpaper</button>
+            <button class="tab-btn" data-tab="search">Search & Aliases</button>
+            <button class="tab-btn" data-tab="widgets">Widgets</button>
+            <button class="tab-btn" data-tab="bookmarks">Bookmarks</button>
+        </aside>
+
+        <main class="main-content">
+            <div id="general" class="tab-pane active">
+                <div class="pane-title">General</div>
+                <div class="form-group">
+                    <label for="logoUrlInput">Custom Logo URL</label>
+                    <input type="text" id="logoUrlInput" class="form-input" placeholder="Leave blank for default">
+                </div>
+                <div class="form-group">
+                    <label for="blurInput">Background Blur (px)</label>
+                    <input type="number" id="blurInput" class="form-input" min="0" max="50">
+                </div>
+            </div>
+
+            <div id="wallpaper" class="tab-pane">
+                <div class="pane-title">Wallpaper Configuration</div>
+                
+                <div class="checkbox-group" style="margin-bottom: 24px;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="bgSyncToggle" checked> Sync Wallpaper with backend?
+                    </label>
+                    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-left: 30px;">
+                        Overrides settings below and listens to Python daemon for live updates.
+                    </div>
+                </div>
+
+                <div id="customBgOptions" style="opacity: 0.5; pointer-events: none; transition: opacity 0.3s; padding-left: 8px; border-left: 2px solid rgba(255,255,255,0.1);">
+                    <div class="form-group">
+                        <label for="bgUrlInput">Custom Wallpaper URL</label>
+                        <input type="text" id="bgUrlInput" class="form-input" placeholder="https://example.com/image.jpg">
+                    </div>
+                    
+                    <div class="checkbox-group" style="margin-bottom: 16px;">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="bgPollToggle"> Poll URL dynamically?
+                        </label>
+                        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-left: 30px;">
+                            Enable this if the URL changes periodically (like a weather radar or random image API).
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="bgPollIntervalGroup" style="opacity: 0.5; pointer-events: none; transition: opacity 0.3s; margin-left: 30px;">
+                        <label for="bgPollIntervalInput">Poll every _ seconds</label>
+                        <input type="number" id="bgPollIntervalInput" class="form-input" min="1" value="60">
+                    </div>
+                </div>
+            </div>
+
+            <div id="search" class="tab-pane">
+                <div class="pane-title">Search Configuration</div>
+                
+                <div class="form-group">
+                    <label for="defaultProviderSelect">Default Search Engine</label>
+                    <select id="defaultProviderSelect" class="form-select">
+                        <option value="startpage">Startpage</option>
+                        <option value="google">Google</option>
+                        <option value="duckduckgo">DuckDuckGo</option>
+                        <option value="gemini">Gemini</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="searchSuggestionSelect">Search Suggestion Behaviour</label>
+                    <select id="searchSuggestionSelect" class="form-select">
+                        <option value="match">Match Selected Search Engine</option>
+                        <option value="startpage">Force Startpage API</option>
+                        <option value="google">Force Google API</option>
+                        <option value="duckduckgo">Force DuckDuckGo API</option>
+                        <option value="disabled">Disabled</option>
+                    </select>
+                </div>
+
+                <div class="pane-subtitle" style="margin-top: 50px;">Alias Engine</div>
+                <p style="color: rgba(255,255,255,0.6); margin-bottom: 24px;">Type a keyword to instantly redirect to a specific URL. Use <strong>%s</strong> in the URL to pass search queries.</p>
+                
+                <div class="alias-grid" id="aliasGrid">
+                    </div>
+
+                <div style="display: flex; gap: 12px; max-width: 800px; align-items: flex-start;">
+                    <input type="text" id="newAliasKey" class="form-input" placeholder="Keyword (e.g. !yt)" style="width: 180px; font-family: monospace;">
+                    <input type="text" id="newAliasUrl" class="form-input" placeholder="Target URL (e.g. https://youtube.com/results?search_query=%s)">
+                    <button id="addAliasBtn" class="btn btn-primary" type="button" style="padding: 14px 28px;">Add</button>
+                </div>
+            </div>
+
+            <div id="widgets" class="tab-pane">
+                <div class="pane-title">Widget Configuration</div>
+
+                <div class="pane-subtitle">Media Player</div>
+                <div class="form-group">
+                    <label for="mediaPosSelect">Widget Position</label>
+                    <select id="mediaPosSelect" class="form-select">
+                        <option value="disabled">Disabled</option>
+                        <option value="top-left">Top Left</option>
+                        <option value="top-right">Top Right</option>
+                        <option value="bottom-left">Bottom Left</option>
+                        <option value="center">Center (Below Bookmarks)</option>
+                        <option value="drawer-left">Off-Canvas Drawer (Left)</option>
+                        <option value="drawer-right">Off-Canvas Drawer (Right)</option>
+                    </select>
+                </div>
+
+                <div class="pane-subtitle">System Monitor</div>
+                <div class="form-group">
+                    <label for="sysWidgetStyleSelect">Widget Aesthetic Style</label>
+                    <select id="sysWidgetStyleSelect" class="form-select">
+                        <option value="style-circular">Circular Rings (Grid)</option>
+                        <option value="style-linear">Linear Progress Bars (Grid)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="sysPosSelect">Widget Position</label>
+                    <select id="sysPosSelect" class="form-select">
+                        <option value="disabled">Disabled</option>
+                        <option value="top-left">Top Left</option>
+                        <option value="top-right">Top Right</option>
+                        <option value="bottom-left">Bottom Left</option>
+                        <option value="bottom-right">Bottom Right</option>
+                        <option value="drawer-left">Off-Canvas Drawer (Left)</option>
+                        <option value="drawer-right">Off-Canvas Drawer (Right)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="sysTempUnitSelect">Temperature Unit</label>
+                    <select id="sysTempUnitSelect" class="form-select">
+                        <option value="C">Celsius (°C)</option>
+                        <option value="F">Fahrenheit (°F)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="sysStorageBaseSelect">Storage Unit Base</label>
+                    <select id="sysStorageBaseSelect" class="form-select">
+                        <option value="1024">Binary (1024 - GiB / MiB)</option>
+                        <option value="1000">Decimal (1000 - GB / MB)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="sysNetworkUnitSelect">Network Speed Unit</label>
+                    <select id="sysNetworkUnitSelect" class="form-select">
+                        <option value="MBps">Megabytes per second (MB/s)</option>
+                        <option value="Mbps">Megabits per second (Mbps)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Visible Components</label>
+                    <div class="checkbox-group" id="sysComponentToggles">
+                        <div style="color: rgba(255,255,255,0.5); font-size: 0.9rem;">Connecting to backend to load components...</div>
+                    </div>
+                </div>
+
+                <div class="pane-subtitle">Clipboard Manager</div>
+                <div class="form-group">
+                    <label for="clipPosSelect">Widget Position</label>
+                    <select id="clipPosSelect" class="form-select">
+                        <option value="disabled">Disabled</option>
+                        <option value="top-left">Top Left</option>
+                        <option value="top-right">Top Right</option>
+                        <option value="bottom-left">Bottom Left</option>
+                        <option value="bottom-right">Bottom Right</option>
+                        <option value="drawer-left">Off-Canvas Drawer (Left)</option>
+                        <option value="drawer-right">Off-Canvas Drawer (Right)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="bookmarks" class="tab-pane">
+                <div class="pane-title">Quick Bookmarks</div>
+                <p style="color: rgba(255,255,255,0.6); margin-bottom: 24px;">Drag and drop cards to reorder them.</p>
+                <div class="bookmark-grid" id="bookmarkGrid"></div>
+            </div>
+        </main>
+    </div>
+
+    <div class="action-bar">
+        <a href="/" class="btn">Cancel</a>
+        <button id="saveSettingsBtn" class="btn btn-primary">Save & Apply</button>
+    </div>
+
+    <div id="iconModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                Choose Icon
+                <span id="closeIconModal" style="cursor:pointer; color:#aaa; font-size:1.5rem; line-height: 1;">&times;</span>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 12px; max-width: 100%;">
+                <label>Search SimpleIcons</label>
+                <input type="text" id="iconSearchInput" class="form-input" placeholder="e.g. github, netflix, docker...">
+            </div>
+
+            <div id="iconGridResults" class="icon-grid"></div>
+
+            <div class="form-group" style="max-width: 100%;">
+                <label>Or Paste Custom URL</label>
+                <input type="text" id="customIconInput" class="form-input" placeholder="https://...">
+            </div>
+
+            <div class="modal-actions">
+                <button id="clearIconBtn" class="btn" style="margin-right: auto; color: #ff5555; border-color: rgba(255, 85, 85, 0.5);">Clear Custom</button>
+                <button id="cancelIconBtn" class="btn">Cancel</button>
+                <button id="applyIconBtn" class="btn btn-primary">Apply Icon</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="/settings/settings.js"></script>
+</body>
+</html>
