@@ -222,19 +222,39 @@ document.addEventListener('input', (e) => {
 async function validateUrlInput(url, type) {
     if (!url) return { valid: true };
 
-    if (type === 'link') {
-        try {
-            new URL(url.startsWith('http') ? url : `https://${url}`);
-            return { valid: true };
-        } catch {
-            return { valid: false, msg: "That doesn't look like a valid link! Check for typos." };
-        }
+    let parsedUrl;
+    try {
+        parsedUrl = new URL(url.startsWith('http') ? url : `https://${url}`);
+    } catch {
+        return { valid: false, msg: "That doesn't look like a valid link! Check for typos." };
     }
 
+    // Protocol check
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
         return { valid: false, msg: "That doesn't look like a valid link! Don't forget the https://" };
     }
 
+    // Domain & TLD check
+    if (!parsedUrl.hostname.includes('.') || parsedUrl.hostname.endsWith('.')) {
+        return { valid: false, msg: "That link is missing a valid domain (like .com or .net)!" };
+    }
+
+    if (type === 'link') {
+        return { valid: true };
+    }
+
+    // Format extension check for images
+    if (type === 'wallpaper' || type === 'logo' || type === 'icon') {
+        const validExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif', '.bmp', '.ico', '.apng', '.json'];
+        const fullUrlStr = parsedUrl.href.toLowerCase();
+        const hasValidExtension = validExts.some(ext => fullUrlStr.includes(ext));
+
+        if (!hasValidExtension) {
+            return { valid: false, msg: "That link doesn't seem to point to an image file! It must contain .jpg, .png, .gif, etc." };
+        }
+    }
+
+    // Deep network validation for wallpapers
     if (type === 'wallpaper') {
         try {
             const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
@@ -251,6 +271,7 @@ async function validateUrlInput(url, type) {
         }
     }
     
+    // Deep image load validation for logos/icons
     if (type === 'logo' || type === 'icon') {
         return new Promise((resolve) => {
             const img = new Image();
