@@ -203,24 +203,21 @@ async function updateBackground(url) {
     const enableWarp = localStorage.getItem('sp_bg_warp') === 'true';
 
     if (enableWarp) {
-        // Initialize Kawarp if not already done
         if (!kawarpInstance) {
             kawarpInstance = new Kawarp(bgCanvas);
-            kawarpInstance.start(); // Start the WebGL animation loop
+            kawarpInstance.start(); 
         }
         
-        // Hide standard CSS backgrounds
         bg1.classList.remove('active');
         bg2.classList.remove('active');
         bgCanvas.classList.add('active');
         
         try {
-            await kawarpInstance.loadImage(url); // Load the image into the WebGL context
+            await kawarpInstance.loadImage(url); 
         } catch (error) {
             console.error("Kawarp failed to load image:", error);
         }
     } else {
-        // Stop and clear WebGL if switching back to standard
         if (kawarpInstance) {
             kawarpInstance.stop();
             kawarpInstance.dispose();
@@ -278,7 +275,6 @@ async function pollAndApplyCustomWallpaper(url, isPolled) {
         console.warn("Smart fetch failed, trying direct CSS injection...", e);
     }
 
-    // Pass the image (proxied if external) into the renderer
     updateBackground(finalImageUrl.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(finalImageUrl)}` : finalImageUrl);
 }
 
@@ -287,52 +283,42 @@ async function getBrowserLogo() {
     const ua = navigator.userAgent;
     let brands = [];
     
-    // Modern Chromium browsers expose their true brands here
     if (navigator.userAgentData && navigator.userAgentData.brands) {
         brands = navigator.userAgentData.brands.map(b => b.brand);
     }
 
-    // 1. Vivaldi (Checks modern brands or legacy window injection)
     if (brands.includes("Vivaldi") || window.vivaldi) {
         return "browserlogos/vivaldi.svg";
     }
     
-    // 2. Brave
     if (navigator.brave && await navigator.brave.isBrave()) {
         return "browserlogos/brave.svg";
     }
     
-    // 3. Firefox, Tor, & Forks (Tor will still block the image render for security)
     if (ua.includes("Firefox") || ua.includes("FxiOS") || ua.includes("LibreWolf")) {
         return "chrome://branding/content/about-logo.png";
     }
     
-    // 4. Opera GX
     if (ua.includes("Edition GX") || ua.includes("OPRGX")) {
         return "browserlogos/opera-gx.svg";
     }
     
-    // 5. Opera Standard
     if (ua.includes("OPR/") || ua.includes("Opera") || brands.includes("Opera")) {
         return "browserlogos/opera.svg";
     }
     
-    // 6. Edge
     if (ua.includes("Edg/") || brands.includes("Microsoft Edge")) {
         return "browserlogos/edge.svg";
     }
     
-    // 7. Samsung Internet
     if (ua.includes("SamsungBrowser") || brands.includes("Samsung Internet")) {
         return "browserlogos/samsung-internet.svg";
     }
     
-    // 8. Safari
     if (ua.includes("Safari") && !ua.includes("Chrome") && !ua.includes("Chromium")) {
         return "browserlogos/safari.svg";
     }
     
-    // 9. Chrome vs Raw Chromium
     if (brands.includes("Google Chrome")) {
         return "browserlogos/chrome.svg";
     }
@@ -340,12 +326,10 @@ async function getBrowserLogo() {
         return "browserlogos/chromium.svg";
     }
     
-    // Fallback for older Chromium that lacks userAgentData
     if (ua.includes("Chrome")) {
         return "browserlogos/chromium.svg";
     }
     
-    // Ultimate Fallback
     return "browserlogos/chromium.svg";
 }
 
@@ -381,7 +365,8 @@ async function loadSettings() {
             }, pollInterval * 1000);
         }
     } else {
-        updateBackground(`wallpaper.png`); 
+        const defaultWallpaper = window.location.origin + '/wallpaper.png';
+        updateBackground(defaultWallpaper); 
     }
 }
 
