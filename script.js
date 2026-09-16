@@ -198,9 +198,28 @@ let activeBg = 1;
 let customBgPollTimer = null;
 let kawarpInstance = null;
 
-async function updateBackground(url) {
-    if (!url) return;
-    const enableWarp = localStorage.getItem('sp_bg_warp') === 'true';
+// Helper to debounce live inputs
+function debouncePreview(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+async function updateBackground(rawUrl, forceWarp = null) {
+    if (!rawUrl) return;
+
+    // Intercept external HTTP/HTTPS URLs and route them through our proxy automatically to avoid CORS issues
+    let url = rawUrl;
+    if (url.startsWith('http') && !url.startsWith(window.location.origin)) {
+        if (!url.includes('/api/proxy?url=')) { // Ensure we don't double proxy
+            url = `/api/proxy?url=${encodeURIComponent(rawUrl)}`;
+        }
+    }
+
+    // Allow overriding the storage state for live previews
+    const enableWarp = forceWarp !== null ? forceWarp : (localStorage.getItem('sp_bg_warp') === 'true');
 
     if (enableWarp) {
         if (!kawarpInstance) {
@@ -275,7 +294,7 @@ async function pollAndApplyCustomWallpaper(url, isPolled) {
         console.warn("Smart fetch failed, trying direct CSS injection...", e);
     }
 
-    updateBackground(finalImageUrl.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(finalImageUrl)}` : finalImageUrl);
+    updateBackground(finalImageUrl);
 }
 
 // --- Browser Detection Logic ---
@@ -347,8 +366,21 @@ async function loadSettings() {
     renderBookmarks();
 
     const customUrl = localStorage.getItem('sp_bg_url') || '';
+    const pollBg = localStorage.getItem('sp_bg_poll') === 'true';
+    const pollInterval = parseInt(localStorage.getItem('sp_bg_poll_interval')) || 60;
+
     if (customUrl) {
-        updateBackground(customUrl);
+        if (pollBg) {
+            pollAndApplyCustomWallpaper(customUrl, true);
+            if (pollInterval > 0) {
+                clearInterval(customBgPollTimer);
+                customBgPollTimer = setInterval(() => {
+                    pollAndApplyCustomWallpaper(customUrl, true);
+                }, pollInterval * 1000);
+            }
+        } else {
+            updateBackground(customUrl);
+        }
     } else {
         const defaultWallpaper = window.location.origin + '/wallpaper.png';
         updateBackground(defaultWallpaper); 
@@ -356,14 +388,6 @@ async function loadSettings() {
 }
 
 // --- Onboarding Wizard Logic ---
-function debouncePreview(func, wait) {
-    let timeout;
-    return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
-    };
-}
-
 async function initOnboarding() {
     const overlay = document.getElementById('onboardingOverlay');
     const step1 = document.getElementById('obStep1');
@@ -374,8 +398,9 @@ async function initOnboarding() {
     const browserLogoEl = document.getElementById('obBrowserLogo');
     const browserSelect = document.getElementById('obBrowserSelect');
     const customUrlWrapper = document.getElementById('obCustomUrlWrapper');
-    const obWallpaperUrl = document.getElementById('obWallpaperUrl');
+    
     const obBlurInput = document.getElementById('obBlurInput');
+    const obWallpaperUrl = document.getElementById('obWallpaperUrl');
     const obWarpToggle = document.getElementById('obWarpToggle');
     
     // Set default background immediately to avoid black screen
@@ -395,17 +420,34 @@ async function initOnboarding() {
             customUrlWrapper.style.display = 'block';
         } else {
             customUrlWrapper.style.display = 'none';
-            browserLogoEl.src = val; // Preview it immediately
+            browserLogoEl.src = val; 
             chosenLogo = val;
         }
     });
+
+    // Handle live preview of the blur slider
+    obBlurInput.addEventListener('input', (e) => {
+        const blurValue = e.target.value || '0';
+        bg1.style.filter = `blur(${blurValue}px)`;
+        bg2.style.filter = `blur(${blurValue}px)`;
+        bgCanvas.style.filter = `blur(${blurValue}px)`;
+    });
+
+    // Handle live preview of the wallpaper & warp toggle
+    const updatePreview = () => {
+        const bgUrl = obWallpaperUrl.value.trim() || (window.location.origin + '/wallpaper.png');
+        const enableWarp = obWarpToggle.checked;
+        updateBackground(bgUrl, enableWarp);
+    };
+
+    obWallpaperUrl.addEventListener('input', debouncePreview(updatePreview, 600));
+    obWarpToggle.addEventListener('change', updatePreview);
 
     // Step 1 buttons
     document.getElementById('obBtnYes').onclick = () => {
         localStorage.setItem('sp_logo', chosenLogo);
         step1.classList.remove('active');
         step2.classList.add('active');
-        overlay.classList.add('preview-mode');
     };
 
     document.getElementById('obBtnNo').onclick = () => {
@@ -426,38 +468,12 @@ async function initOnboarding() {
         localStorage.setItem('sp_logo', chosenLogo);
         step1.classList.remove('active');
         step2.classList.add('active');
-        overlay.classList.add('preview-mode');
     };
-
-    // Live Wallpaper Debounce Logic
-    const applyLiveWallpaperPreview = debouncePreview(() => {
-        const bgUrl = obWallpaperUrl.value.trim();
-        const enableWarp = obWarpToggle.checked;
-        localStorage.setItem('sp_bg_warp', enableWarp);
-        
-        if (bgUrl) {
-            updateBackground(bgUrl);
-        } else {
-            updateBackground(window.location.origin + '/wallpaper.png');
-        }
-    }, 500);
-
-    obWallpaperUrl.addEventListener('input', applyLiveWallpaperPreview);
-    obWarpToggle.addEventListener('change', applyLiveWallpaperPreview);
-    
-    // Handle live preview of the blur slider (instant, no network penalty)
-    obBlurInput.addEventListener('input', (e) => {
-        const blurValue = e.target.value || '0';
-        bg1.style.filter = `blur(${blurValue}px)`;
-        bg2.style.filter = `blur(${blurValue}px)`;
-        bgCanvas.style.filter = `blur(${blurValue}px)`;
-    });
 
     // Step 2 buttons
     document.getElementById('obBtnBack1').onclick = () => {
         step2.classList.remove('active');
         step1.classList.add('active');
-        overlay.classList.remove('preview-mode');
     };
 
     document.getElementById('obBtnNext2').onclick = () => {
@@ -470,18 +486,21 @@ async function initOnboarding() {
         
         if (bgUrl) {
             localStorage.setItem('sp_bg_url', bgUrl);
+        } else {
+            localStorage.removeItem('sp_bg_url');
         }
+
+        // Apply final background before moving to step 3
+        updateBackground(bgUrl || (window.location.origin + '/wallpaper.png'));
 
         step2.classList.remove('active');
         step3.classList.add('active');
-        overlay.classList.remove('preview-mode');
     };
 
     // Step 3 buttons
     document.getElementById('obBtnBack2').onclick = () => {
         step3.classList.remove('active');
         step2.classList.add('active');
-        overlay.classList.add('preview-mode');
     };
 
     document.getElementById('obBtnFinish').onclick = () => {
