@@ -279,7 +279,7 @@ async function pollAndApplyCustomWallpaper(url, isPolled) {
 }
 
 // --- Browser Detection Logic ---
-async function getBrowserLogo() {
+async function detectBrowser() {
     const ua = navigator.userAgent;
     let brands = [];
     
@@ -288,60 +288,55 @@ async function getBrowserLogo() {
     }
 
     if (brands.includes("Vivaldi") || window.vivaldi) {
-        return "browserlogos/vivaldi.svg";
+        return { name: "Vivaldi", logo: "browserlogos/vivaldi.svg" };
     }
-    
     if (navigator.brave && await navigator.brave.isBrave()) {
-        return "browserlogos/brave.svg";
+        return { name: "Brave", logo: "browserlogos/brave.svg" };
     }
-    
     if (ua.includes("Firefox") || ua.includes("FxiOS") || ua.includes("LibreWolf")) {
-        return "chrome://branding/content/about-logo.png";
+        return { name: "Firefox", logo: "chrome://branding/content/about-logo.png" };
     }
-    
     if (ua.includes("Edition GX") || ua.includes("OPRGX")) {
-        return "browserlogos/opera-gx.svg";
+        return { name: "Opera GX", logo: "browserlogos/opera-gx.svg" };
     }
-    
     if (ua.includes("OPR/") || ua.includes("Opera") || brands.includes("Opera")) {
-        return "browserlogos/opera.svg";
+        return { name: "Opera", logo: "browserlogos/opera.svg" };
     }
-    
     if (ua.includes("Edg/") || brands.includes("Microsoft Edge")) {
-        return "browserlogos/edge.svg";
+        return { name: "Microsoft Edge", logo: "browserlogos/edge.svg" };
     }
-    
     if (ua.includes("SamsungBrowser") || brands.includes("Samsung Internet")) {
-        return "browserlogos/samsung-internet.svg";
+        return { name: "Samsung Internet", logo: "browserlogos/samsung-internet.svg" };
     }
-    
     if (ua.includes("Safari") && !ua.includes("Chrome") && !ua.includes("Chromium")) {
-        return "browserlogos/safari.svg";
+        return { name: "Safari", logo: "browserlogos/safari.svg" };
     }
-    
-    if (brands.includes("Google Chrome")) {
-        return "browserlogos/chrome.svg";
+    if (brands.includes("Google Chrome") || ua.includes("Chrome")) {
+        return { name: "Google Chrome", logo: "browserlogos/chrome.svg" };
     }
     if (brands.includes("Chromium")) {
-        return "browserlogos/chromium.svg";
+        return { name: "Chromium", logo: "browserlogos/chromium.svg" };
     }
     
-    if (ua.includes("Chrome")) {
-        return "browserlogos/chromium.svg";
-    }
-    
-    return "browserlogos/chromium.svg";
+    return { name: "Chromium Browser", logo: "browserlogos/chromium.svg" };
 }
 
 const mainLogo = document.getElementById('mainLogo');
 
 async function loadSettings() {
+    // Check if onboarding has been completed
+    if (!localStorage.getItem('sp_onboarding_complete')) {
+        initOnboarding();
+        return;
+    }
+
     const savedProvider = localStorage.getItem('sp_provider') || 'startpage';
     const savedBlur = localStorage.getItem('sp_blur') || '0';
-    
     let savedLogo = localStorage.getItem('sp_logo');
+    
     if (!savedLogo) {
-        savedLogo = await getBrowserLogo();
+        const detected = await detectBrowser();
+        savedLogo = detected.logo;
     }
 
     setActiveProvider(savedProvider);
@@ -352,22 +347,96 @@ async function loadSettings() {
     renderBookmarks();
 
     const customUrl = localStorage.getItem('sp_bg_url') || '';
-    const pollBg = localStorage.getItem('sp_bg_poll') === 'true';
-    const pollInterval = parseInt(localStorage.getItem('sp_bg_poll_interval')) || 60;
-
     if (customUrl) {
-        pollAndApplyCustomWallpaper(customUrl, pollBg);
-
-        if (pollBg && pollInterval > 0) {
-            clearInterval(customBgPollTimer);
-            customBgPollTimer = setInterval(() => {
-                pollAndApplyCustomWallpaper(customUrl, true);
-            }, pollInterval * 1000);
-        }
+        updateBackground(customUrl);
     } else {
         const defaultWallpaper = window.location.origin + '/wallpaper.png';
         updateBackground(defaultWallpaper); 
     }
+}
+
+// --- Onboarding Wizard Logic ---
+async function initOnboarding() {
+    const overlay = document.getElementById('onboardingOverlay');
+    const step1 = document.getElementById('obStep1');
+    const step2 = document.getElementById('obStep2');
+    const step3 = document.getElementById('obStep3');
+
+    const browserNameEl = document.getElementById('obBrowserName');
+    const browserLogoEl = document.getElementById('obBrowserLogo');
+    
+    const detected = await detectBrowser();
+    browserNameEl.innerText = detected.name;
+    browserLogoEl.src = detected.logo;
+    let chosenLogo = detected.logo;
+
+    overlay.classList.add('show');
+
+    // Step 1 buttons
+    document.getElementById('obBtnYes').onclick = () => {
+        localStorage.setItem('sp_logo', chosenLogo);
+        step1.classList.remove('active');
+        step2.classList.add('active');
+        // Preload default wallpaper preview
+        updateBackground(window.location.origin + '/wallpaper.png');
+    };
+
+    document.getElementById('obBtnNo').onclick = () => {
+        document.getElementById('obBrowserPromptText').style.display = 'none';
+        document.getElementById('obStep1Actions').style.display = 'none';
+        document.getElementById('obBrowserManual').style.display = 'block';
+    };
+
+    document.getElementById('obBtnSaveCustomLogo').onclick = () => {
+        const customUrl = document.getElementById('obCustomLogoUrl').value.trim();
+        if (customUrl) chosenLogo = customUrl;
+        localStorage.setItem('sp_logo', chosenLogo);
+        step1.classList.remove('active');
+        step2.classList.add('active');
+        updateBackground(window.location.origin + '/wallpaper.png');
+    };
+
+    // Step 2 buttons
+    document.getElementById('obBtnBack1').onclick = () => {
+        step2.classList.remove('active');
+        step1.classList.add('active');
+    };
+
+    document.getElementById('obBtnNext2').onclick = () => {
+        const bgUrl = document.getElementById('obWallpaperUrl').value.trim();
+        const enableWarp = document.getElementById('obWarpToggle').checked;
+
+        localStorage.setItem('sp_bg_warp', enableWarp);
+        if (bgUrl) {
+            localStorage.setItem('sp_bg_url', bgUrl);
+            updateBackground(bgUrl);
+        } else {
+            updateBackground(window.location.origin + '/wallpaper.png');
+        }
+
+        step2.classList.remove('active');
+        step3.classList.add('active');
+    };
+
+    // Step 3 buttons
+    document.getElementById('obBtnBack2').onclick = () => {
+        step3.classList.remove('active');
+        step2.classList.add('active');
+    };
+
+    document.getElementById('obBtnFinish').onclick = () => {
+        const bm1 = document.getElementById('obBm1').value.trim();
+        const bm2 = document.getElementById('obBm2').value.trim();
+        const bm3 = document.getElementById('obBm3').value.trim();
+
+        if (bm1) localStorage.setItem('sp_bm1_url', bm1);
+        if (bm2) localStorage.setItem('sp_bm2_url', bm2);
+        if (bm3) localStorage.setItem('sp_bm3_url', bm3);
+
+        localStorage.setItem('sp_onboarding_complete', 'true');
+        overlay.classList.remove('show');
+        loadSettings();
+    };
 }
 
 function forceFocus() {
