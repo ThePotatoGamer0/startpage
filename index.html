@@ -143,6 +143,10 @@
         .settings-btn:hover { background: rgba(30, 30, 40, 0.7); transform: rotate(45deg); }
         .settings-btn svg { width: 22px; height: 22px; fill: #ffffff; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
 
+        /* Error States */
+        .error { border-color: #ff5555 !important; box-shadow: 0 0 15px rgba(255, 85, 85, 0.3) !important; }
+        .error-text { color: #ff5555; font-size: 0.85rem; margin-top: -10px; margin-bottom: 16px; text-align: left; animation: fadeIn 0.2s ease; display: none; font-weight: 500; }
+
         /* Onboarding Flow Styles */
         .onboarding-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
@@ -150,10 +154,7 @@
             opacity: 0; visibility: hidden; transition: opacity 0.4s ease, visibility 0.4s ease, background 0.4s ease, backdrop-filter 0.4s ease; color: white;
         }
         .onboarding-overlay.show { opacity: 1; visibility: visible; }
-        
-        .onboarding-overlay.preview-mode {
-            background: rgba(0,0,0,0.2); backdrop-filter: none; -webkit-backdrop-filter: none;
-        }
+        .onboarding-overlay.preview-mode { background: rgba(0,0,0,0.2); backdrop-filter: none; -webkit-backdrop-filter: none; }
 
         .onboarding-card {
             background: rgba(25, 25, 32, 0.95); border: 1px solid rgba(255,255,255,0.15);
