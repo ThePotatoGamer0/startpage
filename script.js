@@ -243,18 +243,7 @@ async function validateUrlInput(url, type) {
         return { valid: true };
     }
 
-    // Format extension check for images
-    if (type === 'wallpaper' || type === 'logo' || type === 'icon') {
-        const validExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif', '.bmp', '.ico', '.apng', '.json'];
-        const fullUrlStr = parsedUrl.href.toLowerCase();
-        const hasValidExtension = validExts.some(ext => fullUrlStr.includes(ext));
-
-        if (!hasValidExtension) {
-            return { valid: false, msg: "That link doesn't seem to point to an image file! It must contain .jpg, .png, .gif, etc." };
-        }
-    }
-
-    // Deep network validation for wallpapers
+    // Network validation for wallpapers (allows extension-less APIs like picsum.photos)
     if (type === 'wallpaper') {
         try {
             const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
@@ -271,7 +260,7 @@ async function validateUrlInput(url, type) {
         }
     }
     
-    // Deep image load validation for logos/icons
+    // Image load validation for logos/icons
     if (type === 'logo' || type === 'icon') {
         return new Promise((resolve) => {
             const img = new Image();
