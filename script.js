@@ -1,3 +1,5 @@
+import { Kawarp } from 'https://cdn.jsdelivr.net/npm/@kawarp/core@1/+esm';
+
 const providers = {
     startpage: { name: "Startpage", action: "https://www.startpage.com/sp/search", method: "POST", inputName: "query", icon: "https://cdn.simpleicons.org/startpage/white" },
     google: { name: "Google", action: "https://www.google.com/search", method: "GET", inputName: "q", icon: "https://cdn.simpleicons.org/google/white" },
@@ -188,16 +190,50 @@ function renderBookmarks() {
     }
 }
 
-const bg1 = document.getElementById('bg1'); const bg2 = document.getElementById('bg2');
+// --- Background Logic ---
+const bg1 = document.getElementById('bg1'); 
+const bg2 = document.getElementById('bg2');
+const bgCanvas = document.getElementById('bg-canvas');
 let activeBg = 1;
 let customBgPollTimer = null;
+let kawarpInstance = null;
 
-function updateBackground(url) {
+async function updateBackground(url) {
     if (!url) return;
-    if (activeBg === 1) {
-        bg2.style.backgroundImage = `url('${url}')`; bg2.classList.add('active'); bg1.classList.remove('active'); activeBg = 2;
+    const enableWarp = localStorage.getItem('sp_bg_warp') === 'true';
+
+    if (enableWarp) {
+        // Initialize Kawarp if not already done
+        if (!kawarpInstance) {
+            kawarpInstance = new Kawarp(bgCanvas);
+            kawarpInstance.start(); // Start the WebGL animation loop
+        }
+        
+        // Hide standard CSS backgrounds
+        bg1.classList.remove('active');
+        bg2.classList.remove('active');
+        bgCanvas.classList.add('active');
+        
+        try {
+            await kawarpInstance.loadImage(url); // Load the image into the WebGL context
+        } catch (error) {
+            console.error("Kawarp failed to load image:", error);
+        }
     } else {
-        bg1.style.backgroundImage = `url('${url}')`; bg1.classList.add('active'); bg2.classList.remove('active'); activeBg = 1;
+        // Stop and clear WebGL if switching back to standard
+        if (kawarpInstance) {
+            kawarpInstance.stop();
+            kawarpInstance.dispose();
+            kawarpInstance = null;
+        }
+        
+        bgCanvas.classList.remove('active');
+        
+        if (activeBg === 1) {
+            bg2.style.backgroundImage = `url('${url}')`; bg2.classList.add('active'); bg1.classList.remove('active'); activeBg = 2;
+        } else {
+            bg1.style.backgroundImage = `url('${url}')`; bg1.classList.add('active'); bg2.classList.remove('active'); activeBg = 1;
+        }
     }
 }
 
@@ -242,7 +278,8 @@ async function pollAndApplyCustomWallpaper(url, isPolled) {
         console.warn("Smart fetch failed, trying direct CSS injection...", e);
     }
 
-    updateBackground(finalImageUrl);
+    // Pass the image (proxied if external) into the renderer
+    updateBackground(finalImageUrl.startsWith('http') ? `/api/proxy?url=${encodeURIComponent(finalImageUrl)}` : finalImageUrl);
 }
 
 // --- Browser Detection Logic ---
@@ -318,7 +355,6 @@ async function loadSettings() {
     const savedProvider = localStorage.getItem('sp_provider') || 'startpage';
     const savedBlur = localStorage.getItem('sp_blur') || '0';
     
-    // Auto-detect logo if user hasn't explicitly saved one
     let savedLogo = localStorage.getItem('sp_logo');
     if (!savedLogo) {
         savedLogo = await getBrowserLogo();
@@ -326,6 +362,7 @@ async function loadSettings() {
 
     setActiveProvider(savedProvider);
     bg1.style.filter = `blur(${savedBlur}px)`; bg2.style.filter = `blur(${savedBlur}px)`;
+    bgCanvas.style.filter = `blur(${savedBlur}px)`;
     mainLogo.src = savedLogo;
 
     renderBookmarks();

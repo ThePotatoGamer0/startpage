@@ -6,6 +6,7 @@ const logoUrlInput = document.getElementById('logoUrlInput');
 const bookmarkGrid = document.getElementById('bookmarkGrid');
 
 // Wallpaper Selectors
+const bgWarpToggle = document.getElementById('bgWarpToggle');
 const bgUrlInput = document.getElementById('bgUrlInput');
 const bgPollToggle = document.getElementById('bgPollToggle');
 const bgPollIntervalGroup = document.getElementById('bgPollIntervalGroup');
@@ -194,6 +195,7 @@ async function loadFormValues() {
     if (logoUrlInput) logoUrlInput.value = localStorage.getItem('sp_logo') || 'chrome://branding/content/about-logo.png';
 
     // Wallpaper
+    bgWarpToggle.checked = localStorage.getItem('sp_bg_warp') === 'true';
     bgUrlInput.value = localStorage.getItem('sp_bg_url') || '';
     bgPollToggle.checked = localStorage.getItem('sp_bg_poll') === 'true';
     bgPollIntervalInput.value = localStorage.getItem('sp_bg_poll_interval') || '60';
@@ -210,6 +212,7 @@ saveSettingsBtn.addEventListener('click', () => {
     localStorage.setItem('sp_logo', logoUrlInput.value);
     
     // Wallpaper Settings
+    localStorage.setItem('sp_bg_warp', bgWarpToggle.checked);
     localStorage.setItem('sp_bg_url', bgUrlInput.value);
     localStorage.setItem('sp_bg_poll', bgPollToggle.checked);
     localStorage.setItem('sp_bg_poll_interval', bgPollIntervalInput.value);
