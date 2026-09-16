@@ -213,7 +213,7 @@ async function updateBackground(rawUrl, forceWarp = null) {
     // Intercept external HTTP/HTTPS URLs and route them through our proxy automatically to avoid CORS issues
     let url = rawUrl;
     if (url.startsWith('http') && !url.startsWith(window.location.origin)) {
-        if (!url.includes('/api/proxy?url=')) { // Ensure we don't double proxy
+        if (!url.includes('/api/proxy?url=')) { 
             url = `/api/proxy?url=${encodeURIComponent(rawUrl)}`;
         }
     }
@@ -448,6 +448,7 @@ async function initOnboarding() {
         localStorage.setItem('sp_logo', chosenLogo);
         step1.classList.remove('active');
         step2.classList.add('active');
+        overlay.classList.add('preview-mode');
     };
 
     document.getElementById('obBtnNo').onclick = () => {
@@ -468,12 +469,14 @@ async function initOnboarding() {
         localStorage.setItem('sp_logo', chosenLogo);
         step1.classList.remove('active');
         step2.classList.add('active');
+        overlay.classList.add('preview-mode');
     };
 
     // Step 2 buttons
     document.getElementById('obBtnBack1').onclick = () => {
         step2.classList.remove('active');
         step1.classList.add('active');
+        overlay.classList.remove('preview-mode');
     };
 
     document.getElementById('obBtnNext2').onclick = () => {
@@ -495,12 +498,14 @@ async function initOnboarding() {
 
         step2.classList.remove('active');
         step3.classList.add('active');
+        overlay.classList.remove('preview-mode');
     };
 
     // Step 3 buttons
     document.getElementById('obBtnBack2').onclick = () => {
         step3.classList.remove('active');
         step2.classList.add('active');
+        overlay.classList.add('preview-mode');
     };
 
     document.getElementById('obBtnFinish').onclick = () => {
