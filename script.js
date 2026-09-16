@@ -190,6 +190,80 @@ function renderBookmarks() {
     }
 }
 
+// --- Validation Logic ---
+function showError(elementId, msg) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.classList.add('error');
+    let errDiv = document.getElementById(elementId + '-err');
+    if (!errDiv) {
+        errDiv = document.createElement('div');
+        errDiv.id = elementId + '-err';
+        errDiv.className = 'error-text';
+        el.parentNode.insertBefore(errDiv, el.nextSibling);
+    }
+    errDiv.innerText = msg;
+    errDiv.style.display = 'block';
+}
+
+function clearError(elementId) {
+    const el = document.getElementById(elementId);
+    if (el) el.classList.remove('error');
+    const errDiv = document.getElementById(elementId + '-err');
+    if (errDiv) errDiv.style.display = 'none';
+}
+
+document.addEventListener('input', (e) => {
+    if (e.target.classList && e.target.classList.contains('error')) {
+        clearError(e.target.id);
+    }
+});
+
+async function validateUrlInput(url, type) {
+    if (!url) return { valid: true };
+
+    if (type === 'link') {
+        try {
+            new URL(url.startsWith('http') ? url : `https://${url}`);
+            return { valid: true };
+        } catch {
+            return { valid: false, msg: "That doesn't look like a valid link! Check for typos." };
+        }
+    }
+
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        return { valid: false, msg: "That doesn't look like a valid link! Don't forget the https://" };
+    }
+
+    if (type === 'wallpaper') {
+        try {
+            const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
+            if (res.status === 404) return { valid: false, msg: "That url leads to nothing! Did you make a typo?" };
+            if (res.status >= 400) return { valid: false, msg: "That website blocked Startpage from grabbing that wallpaper! Try a different site..." };
+            
+            const contentType = res.headers.get('content-type');
+            if (contentType && !contentType.includes('image') && !contentType.includes('json')) {
+                return { valid: false, msg: "That link doesn't seem to point to an image!" };
+            }
+            return { valid: true };
+        } catch (e) {
+            return { valid: false, msg: "That website blocked Startpage from grabbing that wallpaper! Try a different site..." };
+        }
+    }
+    
+    if (type === 'logo' || type === 'icon') {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve({ valid: true });
+            img.onerror = () => resolve({ valid: false, msg: `That url leads to nothing or the image is broken! Did you make a typo?` });
+            img.src = url;
+        });
+    }
+
+    return { valid: true };
+}
+
+
 // --- Background Logic ---
 const bg1 = document.getElementById('bg1'); 
 const bg2 = document.getElementById('bg2');
@@ -198,7 +272,6 @@ let activeBg = 1;
 let customBgPollTimer = null;
 let kawarpInstance = null;
 
-// Helper to debounce live inputs
 function debouncePreview(func, wait) {
     let timeout;
     return function(...args) {
@@ -210,7 +283,6 @@ function debouncePreview(func, wait) {
 async function updateBackground(rawUrl, forceWarp = null) {
     if (!rawUrl) return;
 
-    // Intercept external HTTP/HTTPS URLs and route them through our proxy automatically to avoid CORS issues
     let url = rawUrl;
     if (url.startsWith('http') && !url.startsWith(window.location.origin)) {
         if (!url.includes('/api/proxy?url=')) { 
@@ -218,7 +290,6 @@ async function updateBackground(rawUrl, forceWarp = null) {
         }
     }
 
-    // Allow overriding the storage state for live previews
     const enableWarp = forceWarp !== null ? forceWarp : (localStorage.getItem('sp_bg_warp') === 'true');
 
     if (enableWarp) {
@@ -343,7 +414,6 @@ async function detectBrowser() {
 const mainLogo = document.getElementById('mainLogo');
 
 async function loadSettings() {
-    // Check if onboarding has been completed
     if (!localStorage.getItem('sp_onboarding_complete')) {
         initOnboarding();
         return;
@@ -403,7 +473,6 @@ async function initOnboarding() {
     const obWallpaperUrl = document.getElementById('obWallpaperUrl');
     const obWarpToggle = document.getElementById('obWarpToggle');
     
-    // Set default background immediately to avoid black screen
     updateBackground(window.location.origin + '/wallpaper.png');
     
     const detected = await detectBrowser();
@@ -413,7 +482,6 @@ async function initOnboarding() {
 
     overlay.classList.add('show');
 
-    // Handle dropdown changes
     browserSelect.addEventListener('change', (e) => {
         const val = e.target.value;
         if (val === 'custom') {
@@ -425,7 +493,6 @@ async function initOnboarding() {
         }
     });
 
-    // Handle live preview of the blur slider
     obBlurInput.addEventListener('input', (e) => {
         const blurValue = e.target.value || '0';
         bg1.style.filter = `blur(${blurValue}px)`;
@@ -433,17 +500,27 @@ async function initOnboarding() {
         bgCanvas.style.filter = `blur(${blurValue}px)`;
     });
 
-    // Handle live preview of the wallpaper & warp toggle
-    const updatePreview = () => {
-        const bgUrl = obWallpaperUrl.value.trim() || (window.location.origin + '/wallpaper.png');
+    const updatePreview = async () => {
+        const bgUrl = obWallpaperUrl.value.trim();
         const enableWarp = obWarpToggle.checked;
-        updateBackground(bgUrl, enableWarp);
+
+        if (bgUrl) {
+            const check = await validateUrlInput(bgUrl, 'wallpaper');
+            if (!check.valid) {
+                showError('obWallpaperUrl', check.msg);
+                return;
+            }
+            clearError('obWallpaperUrl');
+        } else {
+            clearError('obWallpaperUrl');
+        }
+
+        updateBackground(bgUrl || (window.location.origin + '/wallpaper.png'), enableWarp);
     };
 
     obWallpaperUrl.addEventListener('input', debouncePreview(updatePreview, 600));
     obWarpToggle.addEventListener('change', updatePreview);
 
-    // Step 1 buttons
     document.getElementById('obBtnYes').onclick = () => {
         localStorage.setItem('sp_logo', chosenLogo);
         step1.classList.remove('active');
@@ -461,10 +538,21 @@ async function initOnboarding() {
         if (match) browserSelect.value = chosenLogo;
     };
 
-    document.getElementById('obBtnSaveCustomLogo').onclick = () => {
+    document.getElementById('obBtnSaveCustomLogo').onclick = async () => {
+        const btn = document.getElementById('obBtnSaveCustomLogo');
         if (browserSelect.value === 'custom') {
             const customUrl = document.getElementById('obCustomLogoUrl').value.trim();
-            if (customUrl) chosenLogo = customUrl;
+            if (customUrl) {
+                const orig = btn.innerText;
+                btn.innerText = "Checking...";
+                const check = await validateUrlInput(customUrl, 'logo');
+                btn.innerText = orig;
+                if (!check.valid) {
+                    showError('obCustomLogoUrl', check.msg);
+                    return;
+                }
+                chosenLogo = customUrl;
+            }
         }
         localStorage.setItem('sp_logo', chosenLogo);
         step1.classList.remove('active');
@@ -472,28 +560,35 @@ async function initOnboarding() {
         overlay.classList.add('preview-mode');
     };
 
-    // Step 2 buttons
     document.getElementById('obBtnBack1').onclick = () => {
         step2.classList.remove('active');
         step1.classList.add('active');
         overlay.classList.remove('preview-mode');
     };
 
-    document.getElementById('obBtnNext2').onclick = () => {
+    document.getElementById('obBtnNext2').onclick = async () => {
         const bgUrl = obWallpaperUrl.value.trim();
         const enableWarp = obWarpToggle.checked;
         const blurVal = obBlurInput.value || '0';
 
-        localStorage.setItem('sp_bg_warp', enableWarp);
-        localStorage.setItem('sp_blur', blurVal);
-        
         if (bgUrl) {
+            const btn = document.getElementById('obBtnNext2');
+            const orig = btn.innerText;
+            btn.innerText = "Checking...";
+            const check = await validateUrlInput(bgUrl, 'wallpaper');
+            btn.innerText = orig;
+            if (!check.valid) {
+                showError('obWallpaperUrl', check.msg);
+                return;
+            }
             localStorage.setItem('sp_bg_url', bgUrl);
         } else {
             localStorage.removeItem('sp_bg_url');
         }
 
-        // Apply final background before moving to step 3
+        localStorage.setItem('sp_bg_warp', enableWarp);
+        localStorage.setItem('sp_blur', blurVal);
+
         updateBackground(bgUrl || (window.location.origin + '/wallpaper.png'));
 
         step2.classList.remove('active');
@@ -501,14 +596,34 @@ async function initOnboarding() {
         overlay.classList.remove('preview-mode');
     };
 
-    // Step 3 buttons
     document.getElementById('obBtnBack2').onclick = () => {
         step3.classList.remove('active');
         step2.classList.add('active');
         overlay.classList.add('preview-mode');
     };
 
-    document.getElementById('obBtnFinish').onclick = () => {
+    document.getElementById('obBtnFinish').onclick = async () => {
+        const bms = ['obBm1', 'obBm2', 'obBm3'];
+        let hasError = false;
+
+        const btn = document.getElementById('obBtnFinish');
+        const orig = btn.innerText;
+        btn.innerText = "Validating...";
+
+        for (let id of bms) {
+            const val = document.getElementById(id).value.trim();
+            if (val) {
+                const check = await validateUrlInput(val, 'link');
+                if (!check.valid) {
+                    showError(id, check.msg);
+                    hasError = true;
+                }
+            }
+        }
+
+        btn.innerText = orig;
+        if (hasError) return;
+
         const bm1 = document.getElementById('obBm1').value.trim();
         const bm2 = document.getElementById('obBm2').value.trim();
         const bm3 = document.getElementById('obBm3').value.trim();

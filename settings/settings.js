@@ -27,6 +27,74 @@ if (!localStorage.getItem('sp_aliases')) {
     searchAliases = JSON.parse(localStorage.getItem('sp_aliases'));
 }
 
+// --- Validation Helpers ---
+function showError(elementId, msg) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.classList.add('error');
+    let errDiv = document.getElementById(elementId + '-err');
+    if (!errDiv) {
+        errDiv = document.createElement('div');
+        errDiv.id = elementId + '-err';
+        errDiv.className = 'error-text';
+        el.parentNode.insertBefore(errDiv, el.nextSibling);
+    }
+    errDiv.innerText = msg;
+    errDiv.style.display = 'block';
+}
+
+function clearError(elementId) {
+    const el = document.getElementById(elementId);
+    if (el) el.classList.remove('error');
+    const errDiv = document.getElementById(elementId + '-err');
+    if (errDiv) errDiv.style.display = 'none';
+}
+
+document.addEventListener('input', (e) => {
+    if (e.target.classList && e.target.classList.contains('error')) {
+        clearError(e.target.id);
+    }
+});
+
+async function validateUrlInput(url, type) {
+    if (!url) return { valid: true };
+
+    if (type === 'link') {
+        try {
+            new URL(url.startsWith('http') ? url : `https://${url}`);
+            return { valid: true };
+        } catch {
+            return { valid: false, msg: "That doesn't look like a valid link! Check for typos." };
+        }
+    }
+
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        return { valid: false, msg: "That doesn't look like a valid link! Don't forget the https://" };
+    }
+
+    if (type === 'wallpaper') {
+        try {
+            const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
+            if (res.status === 404) return { valid: false, msg: "That url leads to nothing! Did you make a typo?" };
+            if (res.status >= 400) return { valid: false, msg: "That website blocked Startpage from grabbing that wallpaper! Try a different site..." };
+            return { valid: true };
+        } catch (e) {
+            return { valid: false, msg: "That website blocked Startpage from grabbing that wallpaper! Try a different site..." };
+        }
+    }
+    
+    if (type === 'logo' || type === 'icon') {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve({ valid: true });
+            img.onerror = () => resolve({ valid: false, msg: `That url leads to nothing or the image is broken! Did you make a typo?` });
+            img.src = url;
+        });
+    }
+
+    return { valid: true };
+}
+
 // --- Utility: Debounce ---
 function debounce(func, wait) {
     let timeout;
@@ -84,13 +152,25 @@ function renderAliases() {
     });
 }
 
-document.getElementById('addAliasBtn').addEventListener('click', () => {
+document.getElementById('addAliasBtn').addEventListener('click', async () => {
     const kwInput = document.getElementById('newAliasKey');
     const urlInput = document.getElementById('newAliasUrl');
     const keyword = kwInput.value.trim().toLowerCase();
     const url = urlInput.value.trim();
 
     if (keyword && url) {
+        const btn = document.getElementById('addAliasBtn');
+        const orig = btn.innerText;
+        btn.innerText = "...";
+        
+        const check = await validateUrlInput(url, 'link');
+        btn.innerText = orig;
+        
+        if (!check.valid) {
+            showError('newAliasUrl', check.msg);
+            return;
+        }
+
         searchAliases.push({ keyword, url });
         kwInput.value = '';
         urlInput.value = '';
@@ -156,7 +236,7 @@ function buildBookmarkCards() {
             </div>
             <div class="bm-inputs">
                 <label class="bm-slot-label">Slot ${i}</label>
-                <input type="text" class="bm-url-input" placeholder="URL" value="${savedUrl}">
+                <input type="text" class="bm-url-input" id="bm-url-${i}" placeholder="URL" value="${savedUrl}">
                 <input type="hidden" class="bm-icon-input" value="${savedIcon}">
             </div>
         `;
@@ -205,19 +285,48 @@ async function loadFormValues() {
     buildBookmarkCards();
 }
 
-saveSettingsBtn.addEventListener('click', () => {
+saveSettingsBtn.addEventListener('click', async () => {
+    saveSettingsBtn.innerText = "Validating...";
+    let hasError = false;
+
+    // Validate Logo
+    const logoUrl = logoUrlInput.value.trim();
+    if (logoUrl && !logoUrl.startsWith('chrome://') && !logoUrl.startsWith('browserlogos/')) {
+        const check = await validateUrlInput(logoUrl, 'logo');
+        if (!check.valid) { showError('logoUrlInput', check.msg); hasError = true; }
+    }
+
+    // Validate Wallpaper
+    const bgUrl = bgUrlInput.value.trim();
+    if (bgUrl) {
+        const check = await validateUrlInput(bgUrl, 'wallpaper');
+        if (!check.valid) { showError('bgUrlInput', check.msg); hasError = true; }
+    }
+
+    // Validate Bookmarks
+    for (let i = 1; i <= 8; i++) {
+        const el = document.getElementById(`bm-url-${i}`);
+        if (el && el.value.trim()) {
+            const check = await validateUrlInput(el.value.trim(), 'link');
+            if (!check.valid) { showError(`bm-url-${i}`, check.msg); hasError = true; }
+        }
+    }
+
+    if (hasError) {
+        saveSettingsBtn.innerText = "Save & Apply";
+        return;
+    }
+
     localStorage.setItem('sp_provider', defaultProviderSelect.value);
     localStorage.setItem('sp_search_suggestions', searchSuggestionSelect.value);
     localStorage.setItem('sp_blur', blurInput.value);
-    localStorage.setItem('sp_logo', logoUrlInput.value);
+    localStorage.setItem('sp_logo', logoUrl);
     
-    // Wallpaper Settings
     localStorage.setItem('sp_bg_warp', bgWarpToggle.checked);
-    localStorage.setItem('sp_bg_url', bgUrlInput.value);
+    localStorage.setItem('sp_bg_url', bgUrl);
     localStorage.setItem('sp_bg_poll', bgPollToggle.checked);
     localStorage.setItem('sp_bg_poll_interval', bgPollIntervalInput.value);
 
-    // Save Aliases
     localStorage.setItem('sp_aliases', JSON.stringify(searchAliases));
 
     const cards = document.querySelectorAll('.bm-card');
@@ -278,11 +387,26 @@ function closeIconModal() { iconModal.classList.remove('show'); currentEditingCa
 
 clearIconBtn.addEventListener('click', () => { customIconInput.value = ''; currentlySelectedIconUrl = null; document.getElementById('applyIconBtn').click(); });
 
-document.getElementById('applyIconBtn').addEventListener('click', () => {
+document.getElementById('applyIconBtn').addEventListener('click', async () => {
     if (!currentEditingCard) return;
-    const finalIconUrl = customIconInput.value.trim() !== '' ? customIconInput.value.trim() : currentlySelectedIconUrl;
-    const urlValue = currentEditingCard.querySelector('.bm-url-input').value.trim();
     
+    let finalIconUrl = currentlySelectedIconUrl;
+    const customUrl = customIconInput.value.trim();
+    
+    if (customUrl) {
+        const btn = document.getElementById('applyIconBtn');
+        const orig = btn.innerText;
+        btn.innerText = "Checking...";
+        const check = await validateUrlInput(customUrl, 'icon');
+        btn.innerText = orig;
+        if (!check.valid) {
+            showError('customIconInput', check.msg);
+            return;
+        }
+        finalIconUrl = customUrl;
+    }
+
+    const urlValue = currentEditingCard.querySelector('.bm-url-input').value.trim();
     let domain = 'example.com';
     try { if(urlValue) domain = new URL(urlValue.startsWith('http') ? urlValue : 'https://' + urlValue).hostname; } catch(e) {}
     const fetchedFavicon = urlValue ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : 'chrome://branding/content/about-logo.png';
