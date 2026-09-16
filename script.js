@@ -366,6 +366,10 @@ async function initOnboarding() {
     const browserLogoEl = document.getElementById('obBrowserLogo');
     const browserSelect = document.getElementById('obBrowserSelect');
     const customUrlWrapper = document.getElementById('obCustomUrlWrapper');
+    const obBlurInput = document.getElementById('obBlurInput');
+    
+    // Set default background immediately to avoid black screen
+    updateBackground(window.location.origin + '/wallpaper.png');
     
     const detected = await detectBrowser();
     browserNameEl.innerText = detected.name;
@@ -385,13 +389,20 @@ async function initOnboarding() {
             chosenLogo = val;
         }
     });
+    
+    // Handle live preview of the blur slider
+    obBlurInput.addEventListener('input', (e) => {
+        const blurValue = e.target.value || '0';
+        bg1.style.filter = `blur(${blurValue}px)`;
+        bg2.style.filter = `blur(${blurValue}px)`;
+        bgCanvas.style.filter = `blur(${blurValue}px)`;
+    });
 
     // Step 1 buttons
     document.getElementById('obBtnYes').onclick = () => {
         localStorage.setItem('sp_logo', chosenLogo);
         step1.classList.remove('active');
         step2.classList.add('active');
-        updateBackground(window.location.origin + '/wallpaper.png');
     };
 
     document.getElementById('obBtnNo').onclick = () => {
@@ -413,7 +424,6 @@ async function initOnboarding() {
         localStorage.setItem('sp_logo', chosenLogo);
         step1.classList.remove('active');
         step2.classList.add('active');
-        updateBackground(window.location.origin + '/wallpaper.png');
     };
 
     // Step 2 buttons
@@ -425,8 +435,11 @@ async function initOnboarding() {
     document.getElementById('obBtnNext2').onclick = () => {
         const bgUrl = document.getElementById('obWallpaperUrl').value.trim();
         const enableWarp = document.getElementById('obWarpToggle').checked;
+        const blurVal = obBlurInput.value || '0';
 
         localStorage.setItem('sp_bg_warp', enableWarp);
+        localStorage.setItem('sp_blur', blurVal);
+        
         if (bgUrl) {
             localStorage.setItem('sp_bg_url', bgUrl);
             updateBackground(bgUrl);

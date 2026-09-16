@@ -145,7 +145,7 @@
 
         /* Onboarding Flow Styles */
         .onboarding-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
             z-index: 1000; display: flex; align-items: center; justify-content: center;
             opacity: 0; visibility: hidden; transition: opacity 0.4s ease, visibility 0.4s ease; color: white;
         }
@@ -260,11 +260,15 @@
             <!-- Step 2: Wallpaper -->
             <div id="obStep2" class="ob-step">
                 <h2 style="margin-top: 0;">Make it yours</h2>
-                <p style="color: rgba(255,255,255,0.7); margin-bottom: 24px;">Set a custom wallpaper URL, or leave it blank to use the default.</p>
+                <p style="color: rgba(255,255,255,0.7); margin-bottom: 24px;">Set a custom wallpaper URL, adjust blur, or leave blank to use the default.</p>
                 
                 <div style="text-align: left;">
                     <input type="text" id="obWallpaperUrl" class="ob-input" placeholder="https://example.com/wallpaper.jpg">
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.9rem; color: rgba(255,255,255,0.8);">
+                    
+                    <label style="display: block; font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 8px;">Background Blur (px):</label>
+                    <input type="number" id="obBlurInput" class="ob-input" min="0" max="50" value="0">
+
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.9rem; color: rgba(255,255,255,0.8); margin-top: 8px;">
                         <input type="checkbox" id="obWarpToggle" style="width: 16px; height: 16px;">
                         Enable fluid Kawarp animation?
                     </label>
