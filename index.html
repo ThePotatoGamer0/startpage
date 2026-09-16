@@ -163,6 +163,7 @@
             border-radius: 12px; color: white; font-family: inherit; font-size: 1rem; outline: none;
             box-sizing: border-box; margin-bottom: 16px; transition: border-color 0.2s;
         }
+        .ob-input option { background: #191920; color: white; }
         .ob-input:focus { border-color: rgba(255,255,255,0.5); }
         .btn-ob {
             background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: white; padding: 12px 28px;
@@ -224,9 +225,30 @@
                 <p style="margin-bottom: 24px;" id="obBrowserPromptText">Is this correct?</p>
                 
                 <div id="obBrowserManual" style="display: none; margin-bottom: 24px; text-align: left;">
-                    <label style="display: block; font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 8px;">Paste a custom logo URL:</label>
-                    <input type="text" id="obCustomLogoUrl" class="ob-input" placeholder="https://example.com/logo.png">
-                    <button id="obBtnSaveCustomLogo" class="btn-ob btn-ob-primary" style="width: 100%; margin-top: 8px;">Save Custom Logo</button>
+                    <label style="display: block; font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 8px;">Select your browser:</label>
+                    <select id="obBrowserSelect" class="ob-input">
+                        <option value="browserlogos/brave.svg">Brave</option>
+                        <option value="browserlogos/chrome.svg">Google Chrome</option>
+                        <option value="browserlogos/chromium.svg">Chromium</option>
+                        <option value="browserlogos/edge.svg">Microsoft Edge</option>
+                        <option value="chrome://branding/content/about-logo.png">Firefox</option>
+                        <option value="browserlogos/opera.svg">Opera</option>
+                        <option value="browserlogos/opera-gx.svg">Opera GX</option>
+                        <option value="browserlogos/safari.svg">Safari</option>
+                        <option value="browserlogos/samsung-internet.svg">Samsung Internet</option>
+                        <option value="browserlogos/vivaldi.svg">Vivaldi</option>
+                        <option value="custom">Custom URL...</option>
+                    </select>
+
+                    <div id="obCustomUrlWrapper" style="display: none; margin-top: 16px;">
+                        <label style="display: block; font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 8px;">Paste a custom logo URL:</label>
+                        <input type="text" id="obCustomLogoUrl" class="ob-input" placeholder="https://example.com/logo.png" style="margin-bottom: 8px;">
+                        <p style="font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-top: 0; margin-bottom: 16px; line-height: 1.4;">
+                            Hint: Most browser logos can be found in SVG format on <a href="https://commons.wikimedia.org/wiki/Category:Logos_of_web_browsers" target="_blank" style="color: #4ade80; text-decoration: none;">Wikimedia Commons</a>.
+                        </p>
+                    </div>
+
+                    <button id="obBtnSaveCustomLogo" class="btn-ob btn-ob-primary" style="width: 100%; margin-top: 8px;">Save Logo</button>
                 </div>
 
                 <div class="ob-actions" id="obStep1Actions">

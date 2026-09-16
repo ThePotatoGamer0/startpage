@@ -364,6 +364,8 @@ async function initOnboarding() {
 
     const browserNameEl = document.getElementById('obBrowserName');
     const browserLogoEl = document.getElementById('obBrowserLogo');
+    const browserSelect = document.getElementById('obBrowserSelect');
+    const customUrlWrapper = document.getElementById('obCustomUrlWrapper');
     
     const detected = await detectBrowser();
     browserNameEl.innerText = detected.name;
@@ -372,12 +374,23 @@ async function initOnboarding() {
 
     overlay.classList.add('show');
 
+    // Handle dropdown changes
+    browserSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val === 'custom') {
+            customUrlWrapper.style.display = 'block';
+        } else {
+            customUrlWrapper.style.display = 'none';
+            browserLogoEl.src = val; // Preview it immediately
+            chosenLogo = val;
+        }
+    });
+
     // Step 1 buttons
     document.getElementById('obBtnYes').onclick = () => {
         localStorage.setItem('sp_logo', chosenLogo);
         step1.classList.remove('active');
         step2.classList.add('active');
-        // Preload default wallpaper preview
         updateBackground(window.location.origin + '/wallpaper.png');
     };
 
@@ -385,11 +398,18 @@ async function initOnboarding() {
         document.getElementById('obBrowserPromptText').style.display = 'none';
         document.getElementById('obStep1Actions').style.display = 'none';
         document.getElementById('obBrowserManual').style.display = 'block';
+        
+        // Try to pre-select the correct dropdown option if it matches our detected one
+        const options = Array.from(browserSelect.options);
+        const match = options.find(opt => opt.value === chosenLogo);
+        if (match) browserSelect.value = chosenLogo;
     };
 
     document.getElementById('obBtnSaveCustomLogo').onclick = () => {
-        const customUrl = document.getElementById('obCustomLogoUrl').value.trim();
-        if (customUrl) chosenLogo = customUrl;
+        if (browserSelect.value === 'custom') {
+            const customUrl = document.getElementById('obCustomLogoUrl').value.trim();
+            if (customUrl) chosenLogo = customUrl;
+        }
         localStorage.setItem('sp_logo', chosenLogo);
         step1.classList.remove('active');
         step2.classList.add('active');
