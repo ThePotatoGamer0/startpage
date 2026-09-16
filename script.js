@@ -356,6 +356,14 @@ async function loadSettings() {
 }
 
 // --- Onboarding Wizard Logic ---
+function debouncePreview(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
 async function initOnboarding() {
     const overlay = document.getElementById('onboardingOverlay');
     const step1 = document.getElementById('obStep1');
@@ -366,7 +374,9 @@ async function initOnboarding() {
     const browserLogoEl = document.getElementById('obBrowserLogo');
     const browserSelect = document.getElementById('obBrowserSelect');
     const customUrlWrapper = document.getElementById('obCustomUrlWrapper');
+    const obWallpaperUrl = document.getElementById('obWallpaperUrl');
     const obBlurInput = document.getElementById('obBlurInput');
+    const obWarpToggle = document.getElementById('obWarpToggle');
     
     // Set default background immediately to avoid black screen
     updateBackground(window.location.origin + '/wallpaper.png');
@@ -389,20 +399,13 @@ async function initOnboarding() {
             chosenLogo = val;
         }
     });
-    
-    // Handle live preview of the blur slider
-    obBlurInput.addEventListener('input', (e) => {
-        const blurValue = e.target.value || '0';
-        bg1.style.filter = `blur(${blurValue}px)`;
-        bg2.style.filter = `blur(${blurValue}px)`;
-        bgCanvas.style.filter = `blur(${blurValue}px)`;
-    });
 
     // Step 1 buttons
     document.getElementById('obBtnYes').onclick = () => {
         localStorage.setItem('sp_logo', chosenLogo);
         step1.classList.remove('active');
         step2.classList.add('active');
+        overlay.classList.add('preview-mode');
     };
 
     document.getElementById('obBtnNo').onclick = () => {
@@ -410,7 +413,6 @@ async function initOnboarding() {
         document.getElementById('obStep1Actions').style.display = 'none';
         document.getElementById('obBrowserManual').style.display = 'block';
         
-        // Try to pre-select the correct dropdown option if it matches our detected one
         const options = Array.from(browserSelect.options);
         const match = options.find(opt => opt.value === chosenLogo);
         if (match) browserSelect.value = chosenLogo;
@@ -424,17 +426,43 @@ async function initOnboarding() {
         localStorage.setItem('sp_logo', chosenLogo);
         step1.classList.remove('active');
         step2.classList.add('active');
+        overlay.classList.add('preview-mode');
     };
+
+    // Live Wallpaper Debounce Logic
+    const applyLiveWallpaperPreview = debouncePreview(() => {
+        const bgUrl = obWallpaperUrl.value.trim();
+        const enableWarp = obWarpToggle.checked;
+        localStorage.setItem('sp_bg_warp', enableWarp);
+        
+        if (bgUrl) {
+            updateBackground(bgUrl);
+        } else {
+            updateBackground(window.location.origin + '/wallpaper.png');
+        }
+    }, 500);
+
+    obWallpaperUrl.addEventListener('input', applyLiveWallpaperPreview);
+    obWarpToggle.addEventListener('change', applyLiveWallpaperPreview);
+    
+    // Handle live preview of the blur slider (instant, no network penalty)
+    obBlurInput.addEventListener('input', (e) => {
+        const blurValue = e.target.value || '0';
+        bg1.style.filter = `blur(${blurValue}px)`;
+        bg2.style.filter = `blur(${blurValue}px)`;
+        bgCanvas.style.filter = `blur(${blurValue}px)`;
+    });
 
     // Step 2 buttons
     document.getElementById('obBtnBack1').onclick = () => {
         step2.classList.remove('active');
         step1.classList.add('active');
+        overlay.classList.remove('preview-mode');
     };
 
     document.getElementById('obBtnNext2').onclick = () => {
-        const bgUrl = document.getElementById('obWallpaperUrl').value.trim();
-        const enableWarp = document.getElementById('obWarpToggle').checked;
+        const bgUrl = obWallpaperUrl.value.trim();
+        const enableWarp = obWarpToggle.checked;
         const blurVal = obBlurInput.value || '0';
 
         localStorage.setItem('sp_bg_warp', enableWarp);
@@ -442,19 +470,18 @@ async function initOnboarding() {
         
         if (bgUrl) {
             localStorage.setItem('sp_bg_url', bgUrl);
-            updateBackground(bgUrl);
-        } else {
-            updateBackground(window.location.origin + '/wallpaper.png');
         }
 
         step2.classList.remove('active');
         step3.classList.add('active');
+        overlay.classList.remove('preview-mode');
     };
 
     // Step 3 buttons
     document.getElementById('obBtnBack2').onclick = () => {
         step3.classList.remove('active');
         step2.classList.add('active');
+        overlay.classList.add('preview-mode');
     };
 
     document.getElementById('obBtnFinish').onclick = () => {
