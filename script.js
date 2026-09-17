@@ -205,7 +205,7 @@ document.addEventListener('widget-updated', (e) => {
         const config = JSON.parse(localStorage.getItem('sp_widget_clock_config') || '{}');
         config.xRatio = e.detail.xRatio;
         config.yRatio = e.detail.yRatio;
-        delete config.x; // clean up old absolute pixel property if present
+        delete config.x;
         delete config.y;
         localStorage.setItem('sp_widget_clock_config', JSON.stringify(config));
     }
@@ -221,7 +221,7 @@ function loadWidgetSettings() {
 
     clockWidgetWindow.style.display = 'block';
 
-    const defaultClockConfig = { xRatio: 0.05, yRatio: 0.05, timeformat: '24' };
+    const defaultClockConfig = { xRatio: 0.5, yRatio: 0.2, timeformat: '24' };
     const clockConfigString = localStorage.getItem('sp_widget_clock_config');
     const clockConfig = clockConfigString ? JSON.parse(clockConfigString) : defaultClockConfig;
 
@@ -284,6 +284,7 @@ async function validateUrlInput(url, type) {
             if (res.status === 404) return { valid: false, msg: "That url leads to nothing! Did you make a typo?" };
             if (res.status >= 400) return { valid: false, msg: "That website blocked Startpage from grabbing that wallpaper! Try a different site..." };
             
+            // Re-added the content-type check!
             const contentType = res.headers.get('content-type');
             if (contentType && !contentType.includes('image') && !contentType.includes('json')) {
                 return { valid: false, msg: "That link doesn't seem to point to an image!" };

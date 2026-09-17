@@ -453,7 +453,6 @@ async function validateUrlInput(url, type) {
 
     let parsedUrl;
     try {
-        // Automatically injects https:// behind the scenes if missing
         parsedUrl = new URL(url.startsWith('http') ? url : `https://${url}`);
     } catch {
         return { valid: false, msg: "That doesn't look like a valid link! Check for typos." };
@@ -467,20 +466,23 @@ async function validateUrlInput(url, type) {
         return { valid: true };
     }
 
-    // Network validation for wallpapers (Extension check removed!)
     if (type === 'wallpaper') {
         try {
-            // Now fetches using the absolute parsedUrl.href to prevent invisible network failures
             const res = await fetch(`/api/proxy?url=${encodeURIComponent(parsedUrl.href)}`);
             if (res.status === 404) return { valid: false, msg: "That url leads to nothing! Did you make a typo?" };
             if (res.status >= 400) return { valid: false, msg: "That website blocked Startpage from grabbing that wallpaper! Try a different site..." };
+            
+            // Re-added the content-type check!
+            const contentType = res.headers.get('content-type');
+            if (contentType && !contentType.includes('image') && !contentType.includes('json')) {
+                return { valid: false, msg: "That link doesn't seem to point to an image!" };
+            }
             return { valid: true };
         } catch (e) {
             return { valid: false, msg: "That website blocked Startpage from grabbing that wallpaper! Try a different site..." };
         }
     }
     
-    // Image load validation for logos/icons (Extension check removed!)
     if (type === 'logo' || type === 'icon') {
         return new Promise((resolve) => {
             const img = new Image();
@@ -725,7 +727,6 @@ saveSettingsBtn.addEventListener('click', async () => {
     }
 
     if (hasError) {
-        // Automatically switch the user to the tab containing the error!
         if (firstErrorTab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));

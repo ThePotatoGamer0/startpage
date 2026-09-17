@@ -107,7 +107,11 @@ class WidgetWindow extends HTMLElement {
     connectedCallback() {
         this.titleBar.addEventListener('pointerdown', this.startDrag);
         window.addEventListener('resize', this.handleResize);
-        this.updatePositionFromRatios();
+        
+        // Wait 1 frame so the inner content loads and offsetWidth isn't 0
+        requestAnimationFrame(() => {
+            this.updatePositionFromRatios();
+        });
     }
 
     disconnectedCallback() {
@@ -121,19 +125,20 @@ class WidgetWindow extends HTMLElement {
     }
 
     updatePositionFromRatios() {
-        const xRatio = parseFloat(this.getAttribute('x-ratio')) || 0.1;
+        const xRatio = parseFloat(this.getAttribute('x-ratio')) || 0.5;
         const yRatio = parseFloat(this.getAttribute('y-ratio')) || 0.1;
 
-        const width = this.offsetWidth || 150; // fallback estimate if not yet rendered
-        const height = this.offsetHeight || 80;
+        const width = this.offsetWidth || 200;
+        const height = this.offsetHeight || 100;
 
         const maxX = Math.max(0, window.innerWidth - width);
         const maxY = Math.max(0, window.innerHeight - height);
 
-        let pixelX = xRatio * window.innerWidth;
-        let pixelY = yRatio * window.innerHeight;
+        // Center anchoring: Calculate screen point, then subtract half the widget's size
+        let pixelX = (xRatio * window.innerWidth) - (width / 2);
+        let pixelY = (yRatio * window.innerHeight) - (height / 2);
 
-        // Clamp to screen bounds
+        // Clamp so it never gets lost off-screen
         pixelX = Math.max(0, Math.min(pixelX, maxX));
         pixelY = Math.max(0, Math.min(pixelY, maxY));
 
@@ -178,8 +183,8 @@ class WidgetWindow extends HTMLElement {
         let dx = e.clientX - this.startX;
         let dy = e.clientY - this.startY;
 
-        if (e.shiftKey) dx = 0; // Shift locks horizontal
-        if (e.ctrlKey || e.metaKey) dy = 0; // Ctrl/Cmd locks vertical
+        if (e.shiftKey) dx = 0; 
+        if (e.ctrlKey || e.metaKey) dy = 0; 
 
         let newX = this.initialX + dx;
         let newY = this.initialY + dy;
@@ -218,8 +223,12 @@ class WidgetWindow extends HTMLElement {
         const currentX = parseFloat(this.style.getPropertyValue('--widget-x')) || 0;
         const currentY = parseFloat(this.style.getPropertyValue('--widget-y')) || 0;
 
-        const xRatio = currentX / window.innerWidth;
-        const yRatio = currentY / window.innerHeight;
+        const width = this.offsetWidth;
+        const height = this.offsetHeight;
+
+        // Save ratio based on the CENTER of the widget
+        const xRatio = (currentX + (width / 2)) / window.innerWidth;
+        const yRatio = (currentY + (height / 2)) / window.innerHeight;
 
         this.setAttribute('x-ratio', xRatio);
         this.setAttribute('y-ratio', yRatio);
