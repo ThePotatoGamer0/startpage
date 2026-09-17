@@ -125,20 +125,24 @@ class WidgetWindow extends HTMLElement {
     }
 
     updatePositionFromRatios() {
-        const xRatio = parseFloat(this.getAttribute('x-ratio')) || 0.5;
-        const yRatio = parseFloat(this.getAttribute('y-ratio')) || 0.1;
+        const xRatio = parseFloat(this.getAttribute('x-ratio'));
+        const yRatio = parseFloat(this.getAttribute('y-ratio'));
+        
+        // If ratios aren't fully set yet, exit early
+        if (isNaN(xRatio) || isNaN(yRatio)) return;
 
         const width = this.offsetWidth || 200;
         const height = this.offsetHeight || 100;
 
-        const maxX = Math.max(0, window.innerWidth - width);
-        const maxY = Math.max(0, window.innerHeight - height);
+        // Calculate available travel distance (use Math.max(1, ...) to avoid division by zero)
+        const maxX = Math.max(1, window.innerWidth - width);
+        const maxY = Math.max(1, window.innerHeight - height);
 
-        // Center anchoring: Calculate screen point, then subtract half the widget's size
-        let pixelX = (xRatio * window.innerWidth) - (width / 2);
-        let pixelY = (yRatio * window.innerHeight) - (height / 2);
+        // Apply ratio to travel distance
+        let pixelX = xRatio * maxX;
+        let pixelY = yRatio * maxY;
 
-        // Clamp so it never gets lost off-screen
+        // Final clamp for safety
         pixelX = Math.max(0, Math.min(pixelX, maxX));
         pixelY = Math.max(0, Math.min(pixelY, maxY));
 
@@ -220,15 +224,18 @@ class WidgetWindow extends HTMLElement {
         window.removeEventListener('pointermove', this.doDrag);
         window.removeEventListener('pointerup', this.stopDrag);
 
-        const currentX = parseFloat(this.style.getPropertyValue('--widget-x')) || 0;
-        const currentY = parseFloat(this.style.getPropertyValue('--widget-y')) || 0;
+        let currentX = parseFloat(this.style.getPropertyValue('--widget-x')) || 0;
+        let currentY = parseFloat(this.style.getPropertyValue('--widget-y')) || 0;
 
         const width = this.offsetWidth;
         const height = this.offsetHeight;
 
-        // Save ratio based on the CENTER of the widget
-        const xRatio = (currentX + (width / 2)) / window.innerWidth;
-        const yRatio = (currentY + (height / 2)) / window.innerHeight;
+        const maxX = Math.max(1, window.innerWidth - width);
+        const maxY = Math.max(1, window.innerHeight - height);
+
+        // Calculate ratio based on available travel distance, not total screen size
+        const xRatio = currentX / maxX;
+        const yRatio = currentY / maxY;
 
         this.setAttribute('x-ratio', xRatio);
         this.setAttribute('y-ratio', yRatio);
