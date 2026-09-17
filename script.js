@@ -190,6 +190,45 @@ function renderBookmarks() {
     }
 }
 
+// --- Widget Logic ---
+
+const editWidgetsBtn = document.getElementById('editWidgetsBtn');
+const clockWidgetWindow = document.getElementById('clockWidgetWindow');
+const clockWidgetContent = document.getElementById('clockWidgetContent');
+
+editWidgetsBtn.addEventListener('click', () => {
+    document.body.classList.toggle('widget-edit-mode');
+});
+
+document.addEventListener('widget-updated', (e) => {
+    if (e.detail.id === 'clockWidgetWindow') {
+        const config = JSON.parse(localStorage.getItem('sp_widget_clock_config') || '{}');
+        config.x = e.detail.x;
+        config.y = e.detail.y;
+        localStorage.setItem('sp_widget_clock_config', JSON.stringify(config));
+    }
+});
+
+function loadWidgetSettings() {
+    const isWidgetsEnabled = localStorage.getItem('sp_widgets_enabled') !== 'false';
+    
+    if (!isWidgetsEnabled) {
+        clockWidgetWindow.style.display = 'none';
+        return;
+    }
+
+    clockWidgetWindow.style.display = 'block';
+
+    const defaultClockConfig = { x: 80, y: 80, timeformat: '24' };
+    const clockConfigString = localStorage.getItem('sp_widget_clock_config');
+    const clockConfig = clockConfigString ? JSON.parse(clockConfigString) : defaultClockConfig;
+
+    if (clockConfig.x !== undefined) clockWidgetWindow.setAttribute('x', clockConfig.x);
+    if (clockConfig.y !== undefined) clockWidgetWindow.setAttribute('y', clockConfig.y);
+    if (clockConfig.timeformat) clockWidgetContent.setAttribute('timeformat', clockConfig.timeformat);
+}
+
+
 // --- Validation Logic ---
 function showError(elementId, msg) {
     const el = document.getElementById(elementId);
@@ -444,6 +483,7 @@ async function loadSettings() {
     mainLogo.src = savedLogo;
 
     renderBookmarks();
+    loadWidgetSettings(); // <--- Loads your widgets on boot
 
     const customUrl = localStorage.getItem('sp_bg_url') || '';
     const pollBg = localStorage.getItem('sp_bg_poll') === 'true';

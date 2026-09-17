@@ -27,6 +27,399 @@ if (!localStorage.getItem('sp_aliases')) {
     searchAliases = JSON.parse(localStorage.getItem('sp_aliases'));
 }
 
+// --- Dynamic Widget Settings Engine ---
+const widgetsEnableToggle = document.getElementById('widgetsEnableToggle');
+const widgetSelect = document.getElementById('widgetSelect');
+const dynamicWidgetSettings = document.getElementById('dynamicWidgetSettings');
+const widgetPreviewContainer = document.getElementById('widgetPreviewContainer');
+
+const activeWidgetTags = ['widget-clock']; 
+let widgetConfigState = {}; 
+
+async function initWidgetsTab() {
+    widgetsEnableToggle.checked = localStorage.getItem('sp_widgets_enabled') !== 'false';
+    
+    await customElements.whenDefined('widget-clock');
+
+    widgetSelect.innerHTML = '';
+    
+    activeWidgetTags.forEach(tag => {
+        const componentClass = customElements.get(tag);
+        if (componentClass && componentClass.widgetConfig) {
+            const schema = componentClass.widgetConfig;
+            
+            const opt = document.createElement('option');
+            opt.value = schema.id;
+            opt.innerText = schema.name;
+            opt.dataset.tag = tag;
+            widgetSelect.appendChild(opt);
+
+            const saved = JSON.parse(localStorage.getItem(`sp_widget_${schema.id}_config`) || '{}');
+            if (saved.x === undefined) saved.x = 80;
+            if (saved.y === undefined) saved.y = 80;
+            
+            schema.fields.forEach(f => {
+                if (saved[f.id] === undefined) saved[f.id] = f.default;
+            });
+            
+            widgetConfigState[schema.id] = saved;
+        }
+    });
+
+    widgetSelect.addEventListener('change', renderWidgetSettingsForm);
+    if (widgetSelect.options.length > 0) renderWidgetSettingsForm();
+}
+
+function renderWidgetSettingsForm() {
+    dynamicWidgetSettings.innerHTML = '';
+    widgetPreviewContainer.innerHTML = '';
+
+    const selectedOption = widgetSelect.options[widgetSelect.selectedIndex];
+    if (!selectedOption) return;
+
+    const widgetId = selectedOption.value;
+    const widgetTag = selectedOption.dataset.tag;
+    const schema = customElements.get(widgetTag).widgetConfig;
+    const currentState = widgetConfigState[widgetId];
+
+    // Build Preview
+    const windowShell = document.createElement('widget-window');
+    windowShell.style.position = 'relative'; 
+    windowShell.style.left = 'auto';
+    windowShell.style.top = 'auto';
+    windowShell.style.setProperty('--widget-edit-opacity', '1');
+    windowShell.style.setProperty('--widget-edit-events', 'auto');
+    
+    const liveWidgetContent = document.createElement(widgetTag);
+    
+    const updatePreviewAttribute = (id, val) => {
+        const strVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+        liveWidgetContent.setAttribute(id, strVal);
+    };
+
+    schema.fields.forEach(f => updatePreviewAttribute(f.id, currentState[f.id]));
+
+    windowShell.appendChild(liveWidgetContent);
+    widgetPreviewContainer.appendChild(windowShell);
+
+    // Build Form Fields
+    schema.fields.forEach(field => {
+        const group = document.createElement('div');
+        group.className = 'form-group';
+        group.style.marginBottom = '24px';
+        
+        const label = document.createElement('label');
+        label.innerText = field.label;
+        label.style.display = 'block';
+        label.style.marginBottom = '8px';
+        label.style.color = 'rgba(255,255,255,0.9)';
+        if (field.type !== 'checkbox') group.appendChild(label);
+
+        let updateState = (val) => {
+            currentState[field.id] = val;
+            updatePreviewAttribute(field.id, val);
+        };
+
+        switch (field.type) {
+            case 'text':
+            case 'number':
+            case 'date':
+            case 'color': {
+                const input = document.createElement('input');
+                input.type = field.type;
+                input.className = 'form-input';
+                if (field.min !== undefined) input.min = field.min;
+                if (field.max !== undefined) input.max = field.max;
+                if (field.step !== undefined) input.step = field.step;
+                if (field.placeholder) input.placeholder = field.placeholder;
+                input.value = currentState[field.id];
+                
+                if (field.type === 'color') {
+                    input.style.padding = '0';
+                    input.style.height = '40px';
+                    input.style.cursor = 'pointer';
+                }
+                
+                input.addEventListener('input', e => updateState(e.target.value));
+                group.appendChild(input);
+                break;
+            }
+
+            case 'textarea': {
+                const textarea = document.createElement('textarea');
+                textarea.className = 'form-input';
+                textarea.style.minHeight = '100px';
+                textarea.style.resize = 'vertical';
+                if (field.placeholder) textarea.placeholder = field.placeholder;
+                textarea.value = currentState[field.id];
+                textarea.addEventListener('input', e => updateState(e.target.value));
+                group.appendChild(textarea);
+                break;
+            }
+
+            case 'checkbox': {
+                const cbGroup = document.createElement('div');
+                cbGroup.className = 'checkbox-group';
+                const cbLabel = document.createElement('label');
+                cbLabel.className = 'checkbox-label';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = currentState[field.id] === true || currentState[field.id] === 'true';
+                
+                cb.addEventListener('change', e => updateState(e.target.checked));
+                cbLabel.appendChild(cb);
+                cbLabel.appendChild(document.createTextNode(' ' + field.label));
+                cbGroup.appendChild(cbLabel);
+                group.appendChild(cbGroup);
+                break;
+            }
+
+            case 'range': {
+                const rangeContainer = document.createElement('div');
+                rangeContainer.style.display = 'flex';
+                rangeContainer.style.alignItems = 'center';
+                rangeContainer.style.gap = '16px';
+                
+                const range = document.createElement('input');
+                range.type = 'range';
+                range.style.flex = '1';
+                range.min = field.min || 0;
+                range.max = field.max || 100;
+                range.step = field.step || 1;
+                range.value = currentState[field.id];
+                
+                const readout = document.createElement('span');
+                readout.style.fontFamily = 'monospace';
+                readout.style.color = '#4ade80';
+                readout.style.width = '40px';
+                readout.innerText = range.value;
+
+                range.addEventListener('input', e => {
+                    readout.innerText = e.target.value;
+                    updateState(e.target.value);
+                });
+                
+                rangeContainer.appendChild(range);
+                rangeContainer.appendChild(readout);
+                group.appendChild(rangeContainer);
+                break;
+            }
+
+            case 'select':
+            case 'font': {
+                const select = document.createElement('select');
+                select.className = 'form-select';
+                field.options.forEach(opt => {
+                    const o = document.createElement('option');
+                    o.value = opt.value;
+                    o.innerText = opt.label;
+                    if (field.type === 'font') o.style.fontFamily = opt.value;
+                    select.appendChild(o);
+                });
+                select.value = currentState[field.id];
+                if (field.type === 'font') select.style.fontFamily = select.value;
+
+                select.addEventListener('change', e => {
+                    if (field.type === 'font') select.style.fontFamily = e.target.value;
+                    updateState(e.target.value);
+                });
+                group.appendChild(select);
+                break;
+            }
+
+            case 'segmented': {
+                const segContainer = document.createElement('div');
+                segContainer.style.display = 'flex';
+                segContainer.style.background = 'rgba(0,0,0,0.4)';
+                segContainer.style.padding = '4px';
+                segContainer.style.borderRadius = '12px';
+                segContainer.style.gap = '4px';
+
+                field.options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.innerText = opt.label;
+                    btn.style.flex = '1';
+                    btn.style.padding = '10px';
+                    btn.style.border = 'none';
+                    btn.style.borderRadius = '8px';
+                    btn.style.cursor = 'pointer';
+                    btn.style.fontFamily = 'inherit';
+                    btn.style.fontWeight = 'bold';
+                    btn.style.transition = 'all 0.2s';
+                    
+                    const isActive = currentState[field.id] === opt.value;
+                    btn.style.background = isActive ? 'rgba(255,255,255,0.2)' : 'transparent';
+                    btn.style.color = isActive ? '#fff' : 'rgba(255,255,255,0.6)';
+
+                    btn.addEventListener('click', () => {
+                        Array.from(segContainer.children).forEach(c => {
+                            c.style.background = 'transparent';
+                            c.style.color = 'rgba(255,255,255,0.6)';
+                        });
+                        btn.style.background = 'rgba(255,255,255,0.2)';
+                        btn.style.color = '#fff';
+                        updateState(opt.value);
+                    });
+                    segContainer.appendChild(btn);
+                });
+                group.appendChild(segContainer);
+                break;
+            }
+
+            case 'multiselect': {
+                const limit = field.max || 999;
+                let selectedArr = Array.isArray(currentState[field.id]) ? currentState[field.id] : [];
+                
+                const msContainer = document.createElement('div');
+                msContainer.className = 'checkbox-group';
+
+                const updateLimits = () => {
+                    const checkboxes = msContainer.querySelectorAll('input[type="checkbox"]');
+                    const isAtLimit = selectedArr.length >= limit;
+                    checkboxes.forEach(cb => {
+                        if (!cb.checked) {
+                            cb.disabled = isAtLimit;
+                            cb.parentElement.style.opacity = isAtLimit ? '0.4' : '1';
+                        }
+                    });
+                };
+
+                field.options.forEach(opt => {
+                    const cbLabel = document.createElement('label');
+                    cbLabel.className = 'checkbox-label';
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.value = opt.value;
+                    cb.checked = selectedArr.includes(opt.value);
+                    
+                    cb.addEventListener('change', (e) => {
+                        if (e.target.checked) {
+                            selectedArr.push(opt.value);
+                        } else {
+                            selectedArr = selectedArr.filter(v => v !== opt.value);
+                        }
+                        updateLimits();
+                        updateState(selectedArr);
+                    });
+
+                    cbLabel.appendChild(cb);
+                    cbLabel.appendChild(document.createTextNode(' ' + opt.label));
+                    msContainer.appendChild(cbLabel);
+                });
+
+                updateLimits();
+                group.appendChild(msContainer);
+                break;
+            }
+
+            case 'list': {
+                let listArr = Array.isArray(currentState[field.id]) ? currentState[field.id] : [];
+                
+                const listContainer = document.createElement('div');
+                
+                const addDiv = document.createElement('div');
+                addDiv.style.display = 'flex';
+                addDiv.style.gap = '8px';
+                addDiv.style.marginBottom = '12px';
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-input';
+                input.placeholder = field.placeholder || 'Add item...';
+                
+                const addBtn = document.createElement('button');
+                addBtn.className = 'btn btn-primary';
+                addBtn.innerText = 'Add';
+                addBtn.style.padding = '0 20px';
+                
+                addDiv.appendChild(input);
+                addDiv.appendChild(addBtn);
+                listContainer.appendChild(addDiv);
+
+                const itemsDiv = document.createElement('div');
+                itemsDiv.style.display = 'flex';
+                itemsDiv.style.flexDirection = 'column';
+                itemsDiv.style.gap = '8px';
+                listContainer.appendChild(itemsDiv);
+
+                const renderListItems = () => {
+                    itemsDiv.innerHTML = '';
+                    listArr.forEach((itemText, idx) => {
+                        const row = document.createElement('div');
+                        row.style.display = 'flex';
+                        row.style.alignItems = 'center';
+                        row.style.gap = '12px';
+                        row.style.background = 'rgba(0,0,0,0.3)';
+                        row.style.padding = '10px 16px';
+                        row.style.borderRadius = '12px';
+                        row.style.border = '1px solid rgba(255,255,255,0.1)';
+                        
+                        const dragHandle = document.createElement('div');
+                        dragHandle.innerHTML = '⋮⋮';
+                        dragHandle.style.cursor = 'grab';
+                        dragHandle.style.color = 'rgba(255,255,255,0.4)';
+                        
+                        const text = document.createElement('div');
+                        text.innerText = itemText;
+                        text.style.flex = '1';
+                        
+                        const delBtn = document.createElement('button');
+                        delBtn.innerHTML = '&times;';
+                        delBtn.style.background = 'none';
+                        delBtn.style.border = 'none';
+                        delBtn.style.color = '#ff5555';
+                        delBtn.style.fontSize = '1.2rem';
+                        delBtn.style.cursor = 'pointer';
+                        
+                        delBtn.addEventListener('click', () => {
+                            listArr.splice(idx, 1);
+                            renderListItems();
+                            updateState(listArr);
+                        });
+
+                        row.appendChild(dragHandle);
+                        row.appendChild(text);
+                        row.appendChild(delBtn);
+                        itemsDiv.appendChild(row);
+                    });
+                };
+
+                addBtn.addEventListener('click', () => {
+                    if (input.value.trim()) {
+                        listArr.push(input.value.trim());
+                        input.value = '';
+                        renderListItems();
+                        updateState(listArr);
+                    }
+                });
+
+                renderListItems();
+                
+                // Init SortableJS for the dynamic list
+                setTimeout(() => {
+                    if (window.Sortable) {
+                        new Sortable(itemsDiv, {
+                            animation: 150,
+                            handle: 'div',
+                            onEnd: (evt) => {
+                                const movedItem = listArr.splice(evt.oldIndex, 1)[0];
+                                listArr.splice(evt.newIndex, 0, movedItem);
+                                updateState(listArr);
+                            }
+                        });
+                    }
+                }, 100);
+
+                group.appendChild(listContainer);
+                break;
+            }
+        }
+        
+        dynamicWidgetSettings.appendChild(group);
+    });
+}
+
+
 // --- Validation Helpers ---
 function showError(elementId, msg) {
     const el = document.getElementById(elementId);
@@ -66,12 +459,10 @@ async function validateUrlInput(url, type) {
         return { valid: false, msg: "That doesn't look like a valid link! Check for typos." };
     }
 
-    // Protocol check
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
         return { valid: false, msg: "That doesn't look like a valid link! Don't forget the https://" };
     }
 
-    // Domain & TLD check
     if (!parsedUrl.hostname.includes('.') || parsedUrl.hostname.endsWith('.')) {
         return { valid: false, msg: "That link is missing a valid domain (like .com or .net)!" };
     }
@@ -80,7 +471,16 @@ async function validateUrlInput(url, type) {
         return { valid: true };
     }
 
-    // Network validation for wallpapers (allows extension-less APIs like picsum.photos)
+    if (type === 'wallpaper' || type === 'logo' || type === 'icon') {
+        const validExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif', '.bmp', '.ico', '.apng', '.json'];
+        const fullUrlStr = parsedUrl.href.toLowerCase();
+        const hasValidExtension = validExts.some(ext => fullUrlStr.includes(ext));
+
+        if (!hasValidExtension) {
+            return { valid: false, msg: "That link doesn't seem to point to an image file! It must contain .jpg, .png, .gif, etc." };
+        }
+    }
+
     if (type === 'wallpaper') {
         try {
             const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
@@ -92,7 +492,6 @@ async function validateUrlInput(url, type) {
         }
     }
     
-    // Image load validation for logos/icons
     if (type === 'logo' || type === 'icon') {
         return new Promise((resolve) => {
             const img = new Image();
@@ -293,6 +692,7 @@ async function loadFormValues() {
 
     renderAliases();
     buildBookmarkCards();
+    initWidgetsTab(); // <-- Boot the new widget settings engine
 }
 
 saveSettingsBtn.addEventListener('click', async () => {
@@ -338,6 +738,12 @@ saveSettingsBtn.addEventListener('click', async () => {
     localStorage.setItem('sp_bg_poll_interval', bgPollIntervalInput.value);
 
     localStorage.setItem('sp_aliases', JSON.stringify(searchAliases));
+    
+    // Save Widgets configurations directly from our dynamically built state object
+    localStorage.setItem('sp_widgets_enabled', widgetsEnableToggle.checked);
+    Object.keys(widgetConfigState).forEach(widgetId => {
+        localStorage.setItem(`sp_widget_${widgetId}_config`, JSON.stringify(widgetConfigState[widgetId]));
+    });
 
     const cards = document.querySelectorAll('.bm-card');
     cards.forEach((card, index) => {
