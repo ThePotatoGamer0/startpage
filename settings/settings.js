@@ -395,7 +395,6 @@ function renderWidgetSettingsForm() {
 
                 renderListItems();
                 
-                // Init SortableJS for the dynamic list
                 setTimeout(() => {
                     if (window.Sortable) {
                         new Sortable(itemsDiv, {
@@ -454,13 +453,10 @@ async function validateUrlInput(url, type) {
 
     let parsedUrl;
     try {
+        // Automatically injects https:// behind the scenes if missing
         parsedUrl = new URL(url.startsWith('http') ? url : `https://${url}`);
     } catch {
         return { valid: false, msg: "That doesn't look like a valid link! Check for typos." };
-    }
-
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        return { valid: false, msg: "That doesn't look like a valid link! Don't forget the https://" };
     }
 
     if (!parsedUrl.hostname.includes('.') || parsedUrl.hostname.endsWith('.')) {
@@ -483,7 +479,8 @@ async function validateUrlInput(url, type) {
 
     if (type === 'wallpaper') {
         try {
-            const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
+            // Now fetches using the absolute parsedUrl.href to prevent invisible network failures
+            const res = await fetch(`/api/proxy?url=${encodeURIComponent(parsedUrl.href)}`);
             if (res.status === 404) return { valid: false, msg: "That url leads to nothing! Did you make a typo?" };
             if (res.status >= 400) return { valid: false, msg: "That website blocked Startpage from grabbing that wallpaper! Try a different site..." };
             return { valid: true };
@@ -497,7 +494,7 @@ async function validateUrlInput(url, type) {
             const img = new Image();
             img.onload = () => resolve({ valid: true });
             img.onerror = () => resolve({ valid: false, msg: `That url leads to nothing or the image is broken! Did you make a typo?` });
-            img.src = url;
+            img.src = parsedUrl.href;
         });
     }
 
@@ -698,19 +695,28 @@ async function loadFormValues() {
 saveSettingsBtn.addEventListener('click', async () => {
     saveSettingsBtn.innerText = "Validating...";
     let hasError = false;
+    let firstErrorTab = null;
 
     // Validate Logo
     const logoUrl = logoUrlInput.value.trim();
     if (logoUrl && !logoUrl.startsWith('chrome://') && !logoUrl.startsWith('browserlogos/')) {
         const check = await validateUrlInput(logoUrl, 'logo');
-        if (!check.valid) { showError('logoUrlInput', check.msg); hasError = true; }
+        if (!check.valid) { 
+            showError('logoUrlInput', check.msg); 
+            hasError = true; 
+            if (!firstErrorTab) firstErrorTab = 'general';
+        }
     }
 
     // Validate Wallpaper
     const bgUrl = bgUrlInput.value.trim();
     if (bgUrl) {
         const check = await validateUrlInput(bgUrl, 'wallpaper');
-        if (!check.valid) { showError('bgUrlInput', check.msg); hasError = true; }
+        if (!check.valid) { 
+            showError('bgUrlInput', check.msg); 
+            hasError = true; 
+            if (!firstErrorTab) firstErrorTab = 'wallpaper';
+        }
     }
 
     // Validate Bookmarks
@@ -718,11 +724,22 @@ saveSettingsBtn.addEventListener('click', async () => {
         const el = document.getElementById(`bm-url-${i}`);
         if (el && el.value.trim()) {
             const check = await validateUrlInput(el.value.trim(), 'link');
-            if (!check.valid) { showError(`bm-url-${i}`, check.msg); hasError = true; }
+            if (!check.valid) { 
+                showError(`bm-url-${i}`, check.msg); 
+                hasError = true; 
+                if (!firstErrorTab) firstErrorTab = 'bookmarks';
+            }
         }
     }
 
     if (hasError) {
+        // Automatically switch the user to the tab containing the error!
+        if (firstErrorTab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            document.querySelector(`.tab-btn[data-tab="${firstErrorTab}"]`).classList.add('active');
+            document.getElementById(firstErrorTab).classList.add('active');
+        }
         saveSettingsBtn.innerText = "Save & Apply";
         return;
     }
