@@ -4,46 +4,101 @@ clockTemplate.innerHTML = `
         :host {
             display: block;
         }
+        
         .clock-container {
-            color: rgba(255, 255, 255, 0.9);
-            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-            font-weight: 300;
-            font-size: 5rem;
             font-family: 'Google Sans Flex', system-ui, -apple-system, sans-serif;
+            font-size: 6rem;
+            font-weight: 500;
+            letter-spacing: -3px;
             text-align: center;
             padding: 10px 30px;
-            letter-spacing: -2px;
+            transition: all 0.3s ease;
         }
+
+        /* --- Style 1: Solid (Standard) --- */
+        .style-solid {
+            color: rgba(255, 255, 255, 0.95);
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            -webkit-text-stroke: 0;
+            background: none;
+            -webkit-text-fill-color: rgba(255, 255, 255, 0.95);
+        }
+
+        /* --- Style 2: Apple Frosted Glass --- */
+        .style-glass {
+            /* Simulates light reflecting across the surface of the text */
+            background: linear-gradient(
+                135deg, 
+                rgba(255, 255, 255, 1) 0%, 
+                rgba(255, 255, 255, 0.3) 30%, 
+                rgba(255, 255, 255, 0.8) 70%, 
+                rgba(255, 255, 255, 0.1) 100%
+            );
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            
+            /* Simulates the physical refractive edge of carved glass */
+            -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.5);
+            
+            /* Lifts the glass off the background */
+            filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.4));
+        }
+
+        /* --- Style 3: Holographic Glass --- */
+        .style-holo {
+            background: linear-gradient(
+                135deg, 
+                rgba(255, 255, 255, 0.9) 0%, 
+                rgba(255, 182, 255, 0.6) 35%, 
+                rgba(182, 236, 255, 0.6) 65%, 
+                rgba(255, 255, 255, 0.9) 100%
+            );
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            -webkit-text-stroke: 1px rgba(255, 255, 255, 0.7);
+            filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5));
+        }
+
     </style>
-    <div class="clock-container" id="timeDisplay">00:00</div>
+    <div class="clock-container style-glass" id="timeDisplay">00:00</div>
 `;
 
 class WidgetClock extends HTMLElement {
     
-    // --- The Settings Schema ---
-    // The settings page reads this object to dynamically build the UI
+    // Our dynamic settings page reads this to build the UI
     static get widgetConfig() {
         return {
-            id: 'clock',                 // Used for saving to localStorage (e.g. sp_widget_clock_config)
-            tag: 'widget-clock',         // The custom element tag name
-            name: 'Clock Widget',        // The display name in the dropdown
+            id: 'clock',                 
+            tag: 'widget-clock',         
+            name: 'Clock Widget',        
             fields: [
                 {
                     id: 'timeformat',
                     label: 'Time Format',
-                    type: 'select',
+                    type: 'segmented', // Uses the new macOS pill control we built!
                     options: [
-                        { value: '24', label: '24-Hour (23:59)' },
-                        { value: '12', label: '12-Hour (11:59 PM)' }
+                        { value: '24', label: '24-Hour' },
+                        { value: '12', label: '12-Hour' }
                     ],
                     default: '24'
+                },
+                {
+                    id: 'design',
+                    label: 'Typography Style',
+                    type: 'select',
+                    options: [
+                        { value: 'glass', label: 'Frosted Glass' },
+                        { value: 'solid', label: 'Solid White' },
+                        { value: 'holo', label: 'Holographic' }
+                    ],
+                    default: 'glass'
                 }
             ]
         };
     }
 
     static get observedAttributes() {
-        return ['timeformat'];
+        return ['timeformat', 'design'];
     }
 
     constructor() {
@@ -56,6 +111,7 @@ class WidgetClock extends HTMLElement {
 
     connectedCallback() {
         this.startClock();
+        this.updateDesign();
     }
 
     disconnectedCallback() {
@@ -63,9 +119,21 @@ class WidgetClock extends HTMLElement {
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
-        if (oldValue !== newValue && name === 'timeformat') {
+        if (oldValue === newValue) return;
+        
+        if (name === 'timeformat') {
             this.updateTime(); 
+        } else if (name === 'design') {
+            this.updateDesign();
         }
+    }
+
+    updateDesign() {
+        const design = this.getAttribute('design') || 'glass';
+        // Strip out any existing style classes
+        this.timeDisplay.className = 'clock-container';
+        // Apply the newly selected style
+        this.timeDisplay.classList.add(`style-${design}`);
     }
 
     startClock() {
