@@ -13,12 +13,15 @@ windowTemplate.innerHTML = `
         }
         
         .widget-container {
+            position: relative; /* Changed so title bar can be positioned absolutely */
             display: flex;
             flex-direction: column;
             filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
         }
 
         .title-bar {
+            position: absolute;
+            top: 0; left: 0; right: 0;
             height: 28px;
             background: rgba(30, 30, 40, 0.75);
             backdrop-filter: blur(12px);
@@ -34,7 +37,18 @@ windowTemplate.innerHTML = `
             
             opacity: var(--widget-edit-opacity, 0);
             pointer-events: var(--widget-edit-events, none);
-            transition: opacity 0.3s ease;
+            
+            /* Sits directly above the content by default */
+            transform: translateY(-100%);
+            transition: opacity 0.3s ease, transform 0.2s ease, border-radius 0.2s ease;
+            z-index: 100;
+        }
+
+        /* Triggered dynamically when near the top screen edge */
+        .title-bar.shift-down {
+            transform: translateY(0);
+            border-radius: 12px; /* Turns into a floating pill over the content */
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         .title-bar:active { cursor: grabbing; }
@@ -54,7 +68,7 @@ windowTemplate.innerHTML = `
         }
 
         .content-slot {
-            border-radius: 0 0 12px 12px;
+            border-radius: 12px;
             background: transparent; 
         }
     </style>
@@ -67,14 +81,14 @@ windowTemplate.innerHTML = `
             <div class="drag-grip"></div>
         </div>
         <div class="content-slot">
-            <slot></slot> <!-- External content gets projected here -->
+            <slot></slot>
         </div>
     </div>
 `;
 
 class WidgetWindow extends HTMLElement {
     static get observedAttributes() {
-        return ['x', 'y']; // Only cares about coordinates
+        return ['x', 'y'];
     }
 
     constructor() {
@@ -93,7 +107,11 @@ class WidgetWindow extends HTMLElement {
     connectedCallback() {
         this.titleBar.addEventListener('pointerdown', this.startDrag);
         if (this.hasAttribute('x')) this.style.setProperty('--widget-x', `${this.getAttribute('x')}px`);
-        if (this.hasAttribute('y')) this.style.setProperty('--widget-y', `${this.getAttribute('y')}px`);
+        if (this.hasAttribute('y')) {
+            const y = parseFloat(this.getAttribute('y'));
+            this.style.setProperty('--widget-y', `${y}px`);
+            this.updateTitleBarPosition(y);
+        }
     }
 
     disconnectedCallback() {
@@ -103,7 +121,21 @@ class WidgetWindow extends HTMLElement {
     attributeChangedCallback(name, oldValue, newValue) {
         if (oldValue === newValue) return;
         if (name === 'x') this.style.setProperty('--widget-x', `${newValue}px`);
-        if (name === 'y') this.style.setProperty('--widget-y', `${newValue}px`);
+        if (name === 'y') {
+            const y = parseFloat(newValue);
+            this.style.setProperty('--widget-y', `${y}px`);
+            this.updateTitleBarPosition(y);
+        }
+    }
+
+    updateTitleBarPosition(y) {
+        if (!this.titleBar) return;
+        // If the widget is within 30px of the top edge, slide the title bar inside
+        if (y < 30) {
+            this.titleBar.classList.add('shift-down');
+        } else {
+            this.titleBar.classList.remove('shift-down');
+        }
     }
 
     startDrag(e) {
@@ -120,8 +152,42 @@ class WidgetWindow extends HTMLElement {
 
     doDrag(e) {
         if (!this.isDragging) return;
-        const newX = this.initialX + (e.clientX - this.startX);
-        const newY = this.initialY + (e.clientY - this.startY);
+
+        let dx = e.clientX - this.startX;
+        let dy = e.clientY - this.startY;
+
+        // Power-user shortcuts: Lock axis
+        if (e.shiftKey) dx = 0; // Shift locks horizontal (moves Y only)
+        if (e.ctrlKey || e.metaKey) dy = 0; // Ctrl/Cmd locks vertical (moves X only)
+
+        let newX = this.initialX + dx;
+        let newY = this.initialY + dy;
+
+        const width = this.offsetWidth;
+        const height = this.offsetHeight;
+        const screenW = window.innerWidth;
+        const screenH = window.innerHeight;
+
+        // Snap Settings
+        const SNAP = 20;
+        const centerX = (screenW - width) / 2;
+        const centerY = (screenH - height) / 2;
+
+        // 1. Center Snapping
+        if (Math.abs(newX - centerX) < SNAP) newX = centerX;
+        if (Math.abs(newY - centerY) < SNAP) newY = centerY;
+
+        // 2. Edge Snapping
+        if (newX < SNAP) newX = 0;
+        if (newX > screenW - width - SNAP) newX = screenW - width;
+        if (newY < SNAP) newY = 0;
+        if (newY > screenH - height - SNAP) newY = screenH - height;
+
+        // 3. Absolute Screen Constraints (Hard limits so it never gets lost)
+        newX = Math.max(0, Math.min(newX, screenW - width));
+        newY = Math.max(0, Math.min(newY, screenH - height));
+
+        // Setting attributes triggers attributeChangedCallback, applying CSS & titlebar logic
         this.setAttribute('x', newX);
         this.setAttribute('y', newY);
     }
@@ -134,7 +200,7 @@ class WidgetWindow extends HTMLElement {
 
         this.dispatchEvent(new CustomEvent('widget-updated', {
             detail: { 
-                id: this.id, // Emits its ID so the main page knows which widget moved
+                id: this.id, 
                 x: this.getAttribute('x'), 
                 y: this.getAttribute('y') 
             },
