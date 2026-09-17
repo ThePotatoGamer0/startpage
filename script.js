@@ -268,12 +268,6 @@ async function validateUrlInput(url, type) {
         return { valid: false, msg: "That doesn't look like a valid link! Check for typos." };
     }
 
-    // Protocol check
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        return { valid: false, msg: "That doesn't look like a valid link! Don't forget the https://" };
-    }
-
-    // Domain & TLD check
     if (!parsedUrl.hostname.includes('.') || parsedUrl.hostname.endsWith('.')) {
         return { valid: false, msg: "That link is missing a valid domain (like .com or .net)!" };
     }
@@ -282,10 +276,10 @@ async function validateUrlInput(url, type) {
         return { valid: true };
     }
 
-    // Network validation for wallpapers (allows extension-less APIs like picsum.photos)
+    // Network validation for wallpapers (Extension check removed!)
     if (type === 'wallpaper') {
         try {
-            const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
+            const res = await fetch(`/api/proxy?url=${encodeURIComponent(parsedUrl.href)}`);
             if (res.status === 404) return { valid: false, msg: "That url leads to nothing! Did you make a typo?" };
             if (res.status >= 400) return { valid: false, msg: "That website blocked Startpage from grabbing that wallpaper! Try a different site..." };
             
@@ -299,13 +293,13 @@ async function validateUrlInput(url, type) {
         }
     }
     
-    // Image load validation for logos/icons
+    // Image load validation for logos/icons (Extension check removed!)
     if (type === 'logo' || type === 'icon') {
         return new Promise((resolve) => {
             const img = new Image();
             img.onload = () => resolve({ valid: true });
             img.onerror = () => resolve({ valid: false, msg: `That url leads to nothing or the image is broken! Did you make a typo?` });
-            img.src = url;
+            img.src = parsedUrl.href;
         });
     }
 

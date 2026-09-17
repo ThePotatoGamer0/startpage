@@ -467,16 +467,7 @@ async function validateUrlInput(url, type) {
         return { valid: true };
     }
 
-    if (type === 'wallpaper' || type === 'logo' || type === 'icon') {
-        const validExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif', '.bmp', '.ico', '.apng', '.json'];
-        const fullUrlStr = parsedUrl.href.toLowerCase();
-        const hasValidExtension = validExts.some(ext => fullUrlStr.includes(ext));
-
-        if (!hasValidExtension) {
-            return { valid: false, msg: "That link doesn't seem to point to an image file! It must contain .jpg, .png, .gif, etc." };
-        }
-    }
-
+    // Network validation for wallpapers (Extension check removed!)
     if (type === 'wallpaper') {
         try {
             // Now fetches using the absolute parsedUrl.href to prevent invisible network failures
@@ -489,6 +480,7 @@ async function validateUrlInput(url, type) {
         }
     }
     
+    // Image load validation for logos/icons (Extension check removed!)
     if (type === 'logo' || type === 'icon') {
         return new Promise((resolve) => {
             const img = new Image();
