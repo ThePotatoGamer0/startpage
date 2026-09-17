@@ -13,7 +13,7 @@ windowTemplate.innerHTML = `
         }
         
         .widget-container {
-            position: relative; /* Changed so title bar can be positioned absolutely */
+            position: relative;
             display: flex;
             flex-direction: column;
             filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
@@ -38,16 +38,14 @@ windowTemplate.innerHTML = `
             opacity: var(--widget-edit-opacity, 0);
             pointer-events: var(--widget-edit-events, none);
             
-            /* Sits directly above the content by default */
             transform: translateY(-100%);
             transition: opacity 0.3s ease, transform 0.2s ease, border-radius 0.2s ease;
             z-index: 100;
         }
 
-        /* Triggered dynamically when near the top screen edge */
         .title-bar.shift-down {
             transform: translateY(0);
-            border-radius: 12px; /* Turns into a floating pill over the content */
+            border-radius: 12px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.15);
         }
 
@@ -88,7 +86,7 @@ windowTemplate.innerHTML = `
 
 class WidgetWindow extends HTMLElement {
     static get observedAttributes() {
-        return ['x', 'y'];
+        return ['x-ratio', 'y-ratio'];
     }
 
     constructor() {
@@ -101,36 +99,57 @@ class WidgetWindow extends HTMLElement {
         this.startDrag = this.startDrag.bind(this);
         this.doDrag = this.doDrag.bind(this);
         this.stopDrag = this.stopDrag.bind(this);
+        this.handleResize = this.handleResize.bind(this);
+        
         this.isDragging = false;
     }
 
     connectedCallback() {
         this.titleBar.addEventListener('pointerdown', this.startDrag);
-        if (this.hasAttribute('x')) this.style.setProperty('--widget-x', `${this.getAttribute('x')}px`);
-        if (this.hasAttribute('y')) {
-            const y = parseFloat(this.getAttribute('y'));
-            this.style.setProperty('--widget-y', `${y}px`);
-            this.updateTitleBarPosition(y);
-        }
+        window.addEventListener('resize', this.handleResize);
+        this.updatePositionFromRatios();
     }
 
     disconnectedCallback() {
         this.titleBar.removeEventListener('pointerdown', this.startDrag);
+        window.removeEventListener('resize', this.handleResize);
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
         if (oldValue === newValue) return;
-        if (name === 'x') this.style.setProperty('--widget-x', `${newValue}px`);
-        if (name === 'y') {
-            const y = parseFloat(newValue);
-            this.style.setProperty('--widget-y', `${y}px`);
-            this.updateTitleBarPosition(y);
+        this.updatePositionFromRatios();
+    }
+
+    updatePositionFromRatios() {
+        const xRatio = parseFloat(this.getAttribute('x-ratio')) || 0.1;
+        const yRatio = parseFloat(this.getAttribute('y-ratio')) || 0.1;
+
+        const width = this.offsetWidth || 150; // fallback estimate if not yet rendered
+        const height = this.offsetHeight || 80;
+
+        const maxX = Math.max(0, window.innerWidth - width);
+        const maxY = Math.max(0, window.innerHeight - height);
+
+        let pixelX = xRatio * window.innerWidth;
+        let pixelY = yRatio * window.innerHeight;
+
+        // Clamp to screen bounds
+        pixelX = Math.max(0, Math.min(pixelX, maxX));
+        pixelY = Math.max(0, Math.min(pixelY, maxY));
+
+        this.style.setProperty('--widget-x', `${pixelX}px`);
+        this.style.setProperty('--widget-y', `${pixelY}px`);
+        this.updateTitleBarPosition(pixelY);
+    }
+
+    handleResize() {
+        if (!this.isDragging) {
+            this.updatePositionFromRatios();
         }
     }
 
     updateTitleBarPosition(y) {
         if (!this.titleBar) return;
-        // If the widget is within 30px of the top edge, slide the title bar inside
         if (y < 30) {
             this.titleBar.classList.add('shift-down');
         } else {
@@ -143,8 +162,11 @@ class WidgetWindow extends HTMLElement {
         this.isDragging = true;
         this.startX = e.clientX;
         this.startY = e.clientY;
-        this.initialX = parseFloat(this.getAttribute('x')) || 0;
-        this.initialY = parseFloat(this.getAttribute('y')) || 0;
+        
+        const currentX = parseFloat(this.style.getPropertyValue('--widget-x')) || 0;
+        const currentY = parseFloat(this.style.getPropertyValue('--widget-y')) || 0;
+        this.initialX = currentX;
+        this.initialY = currentY;
         
         window.addEventListener('pointermove', this.doDrag);
         window.addEventListener('pointerup', this.stopDrag);
@@ -156,9 +178,8 @@ class WidgetWindow extends HTMLElement {
         let dx = e.clientX - this.startX;
         let dy = e.clientY - this.startY;
 
-        // Power-user shortcuts: Lock axis
-        if (e.shiftKey) dx = 0; // Shift locks horizontal (moves Y only)
-        if (e.ctrlKey || e.metaKey) dy = 0; // Ctrl/Cmd locks vertical (moves X only)
+        if (e.shiftKey) dx = 0; // Shift locks horizontal
+        if (e.ctrlKey || e.metaKey) dy = 0; // Ctrl/Cmd locks vertical
 
         let newX = this.initialX + dx;
         let newY = this.initialY + dy;
@@ -168,28 +189,24 @@ class WidgetWindow extends HTMLElement {
         const screenW = window.innerWidth;
         const screenH = window.innerHeight;
 
-        // Snap Settings
         const SNAP = 20;
         const centerX = (screenW - width) / 2;
         const centerY = (screenH - height) / 2;
 
-        // 1. Center Snapping
         if (Math.abs(newX - centerX) < SNAP) newX = centerX;
         if (Math.abs(newY - centerY) < SNAP) newY = centerY;
 
-        // 2. Edge Snapping
         if (newX < SNAP) newX = 0;
         if (newX > screenW - width - SNAP) newX = screenW - width;
         if (newY < SNAP) newY = 0;
         if (newY > screenH - height - SNAP) newY = screenH - height;
 
-        // 3. Absolute Screen Constraints (Hard limits so it never gets lost)
         newX = Math.max(0, Math.min(newX, screenW - width));
         newY = Math.max(0, Math.min(newY, screenH - height));
 
-        // Setting attributes triggers attributeChangedCallback, applying CSS & titlebar logic
-        this.setAttribute('x', newX);
-        this.setAttribute('y', newY);
+        this.style.setProperty('--widget-x', `${newX}px`);
+        this.style.setProperty('--widget-y', `${newY}px`);
+        this.updateTitleBarPosition(newY);
     }
 
     stopDrag(e) {
@@ -198,11 +215,20 @@ class WidgetWindow extends HTMLElement {
         window.removeEventListener('pointermove', this.doDrag);
         window.removeEventListener('pointerup', this.stopDrag);
 
+        const currentX = parseFloat(this.style.getPropertyValue('--widget-x')) || 0;
+        const currentY = parseFloat(this.style.getPropertyValue('--widget-y')) || 0;
+
+        const xRatio = currentX / window.innerWidth;
+        const yRatio = currentY / window.innerHeight;
+
+        this.setAttribute('x-ratio', xRatio);
+        this.setAttribute('y-ratio', yRatio);
+
         this.dispatchEvent(new CustomEvent('widget-updated', {
             detail: { 
                 id: this.id, 
-                x: this.getAttribute('x'), 
-                y: this.getAttribute('y') 
+                xRatio: xRatio, 
+                yRatio: yRatio 
             },
             bubbles: true,
             composed: true

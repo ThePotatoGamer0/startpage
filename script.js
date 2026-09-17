@@ -203,8 +203,10 @@ editWidgetsBtn.addEventListener('click', () => {
 document.addEventListener('widget-updated', (e) => {
     if (e.detail.id === 'clockWidgetWindow') {
         const config = JSON.parse(localStorage.getItem('sp_widget_clock_config') || '{}');
-        config.x = e.detail.x;
-        config.y = e.detail.y;
+        config.xRatio = e.detail.xRatio;
+        config.yRatio = e.detail.yRatio;
+        delete config.x; // clean up old absolute pixel property if present
+        delete config.y;
         localStorage.setItem('sp_widget_clock_config', JSON.stringify(config));
     }
 });
@@ -219,12 +221,12 @@ function loadWidgetSettings() {
 
     clockWidgetWindow.style.display = 'block';
 
-    const defaultClockConfig = { x: 80, y: 80, timeformat: '24' };
+    const defaultClockConfig = { xRatio: 0.05, yRatio: 0.05, timeformat: '24' };
     const clockConfigString = localStorage.getItem('sp_widget_clock_config');
     const clockConfig = clockConfigString ? JSON.parse(clockConfigString) : defaultClockConfig;
 
-    if (clockConfig.x !== undefined) clockWidgetWindow.setAttribute('x', clockConfig.x);
-    if (clockConfig.y !== undefined) clockWidgetWindow.setAttribute('y', clockConfig.y);
+    if (clockConfig.xRatio !== undefined) clockWidgetWindow.setAttribute('x-ratio', clockConfig.xRatio);
+    if (clockConfig.yRatio !== undefined) clockWidgetWindow.setAttribute('y-ratio', clockConfig.yRatio);
     if (clockConfig.timeformat) clockWidgetContent.setAttribute('timeformat', clockConfig.timeformat);
 }
 
@@ -276,7 +278,6 @@ async function validateUrlInput(url, type) {
         return { valid: true };
     }
 
-    // Network validation for wallpapers (Extension check removed!)
     if (type === 'wallpaper') {
         try {
             const res = await fetch(`/api/proxy?url=${encodeURIComponent(parsedUrl.href)}`);
@@ -293,7 +294,6 @@ async function validateUrlInput(url, type) {
         }
     }
     
-    // Image load validation for logos/icons (Extension check removed!)
     if (type === 'logo' || type === 'icon') {
         return new Promise((resolve) => {
             const img = new Image();
@@ -477,7 +477,7 @@ async function loadSettings() {
     mainLogo.src = savedLogo;
 
     renderBookmarks();
-    loadWidgetSettings(); // <--- Loads your widgets on boot
+    loadWidgetSettings(); 
 
     const customUrl = localStorage.getItem('sp_bg_url') || '';
     const pollBg = localStorage.getItem('sp_bg_poll') === 'true';
