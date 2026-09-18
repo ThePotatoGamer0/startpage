@@ -9,6 +9,7 @@
     <!-- Import our custom Native Web Components -->
     <script type="module" src="components/widget-window.js"></script>
     <script type="module" src="components/widget-clock.js"></script>
+    <script type="module" src="components/widget-greeting.js"></script>
 
     <style>
         body, html {
@@ -212,9 +213,13 @@
     <div id="bg2" class="bg-layer"></div>
     <canvas id="bg-canvas" class="bg-layer"></canvas>
 
-    <!-- The actual Widget container. Absolute coordinates are handled by the component. -->
-    <widget-window id="clockWidgetWindow" x="80" y="80">
+    <!-- Widget Containers -->
+    <widget-window id="clockWidgetWindow">
         <widget-clock id="clockWidgetContent" timeformat="24"></widget-clock>
+    </widget-window>
+
+    <widget-window id="greetingWidgetWindow">
+        <widget-greeting id="greetingWidgetContent" username="Friend"></widget-greeting>
     </widget-window>
 
     <div class="content">
@@ -332,7 +337,7 @@
                 <div style="text-align: left;">
                     <input type="text" id="obBm1" class="ob-input" placeholder="Site 1 URL (e.g. github.com)">
                     <input type="text" id="obBm2" class="ob-input" placeholder="Site 2 URL (e.g. youtube.com)">
-                    <input type="text" id="obBm3" class="ob-input" placeholder="Site 3 URL (e.g. reddit.com)">
+                    <input type="text" id="obBm3" class="ob-input" placeholder="Site 3 URL (e.g. riddle.com)">
                 </div>
 
                 <div class="ob-actions">
