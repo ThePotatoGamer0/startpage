@@ -95,6 +95,7 @@ class WidgetWindow extends HTMLElement {
         this.shadowRoot.appendChild(windowTemplate.content.cloneNode(true));
 
         this.titleBar = this.shadowRoot.querySelector('.title-bar');
+        this.slotElement = this.shadowRoot.querySelector('slot');
         
         this.startDrag = this.startDrag.bind(this);
         this.doDrag = this.doDrag.bind(this);
@@ -102,21 +103,40 @@ class WidgetWindow extends HTMLElement {
         this.handleResize = this.handleResize.bind(this);
         
         this.isDragging = false;
+        this.resizeObserver = null;
     }
 
     connectedCallback() {
         this.titleBar.addEventListener('pointerdown', this.startDrag);
         window.addEventListener('resize', this.handleResize);
-        
-        // Wait 1 frame so the inner content loads and offsetWidth isn't 0
-        requestAnimationFrame(() => {
-            this.updatePositionFromRatios();
+
+        // Watch the assigned slot elements for size changes (e.g. font scale changes)
+        this.slotElement.addEventListener('slotchange', () => {
+            const assigned = this.slotElement.assignedElements();
+            if (assigned.length > 0) {
+                this.observeContent(assigned[0]);
+            }
         });
+
+        this.updatePositionFromRatios();
+    }
+
+    observeContent(el) {
+        if (this.resizeObserver) this.resizeObserver.disconnect();
+        
+        this.resizeObserver = new ResizeObserver(() => {
+            if (!this.isDragging) {
+                this.updatePositionFromRatios();
+            }
+        });
+        
+        this.resizeObserver.observe(el);
     }
 
     disconnectedCallback() {
         this.titleBar.removeEventListener('pointerdown', this.startDrag);
         window.removeEventListener('resize', this.handleResize);
+        if (this.resizeObserver) this.resizeObserver.disconnect();
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -128,21 +148,17 @@ class WidgetWindow extends HTMLElement {
         const xRatio = parseFloat(this.getAttribute('x-ratio'));
         const yRatio = parseFloat(this.getAttribute('y-ratio'));
         
-        // If ratios aren't fully set yet, exit early
         if (isNaN(xRatio) || isNaN(yRatio)) return;
 
         const width = this.offsetWidth || 200;
         const height = this.offsetHeight || 100;
 
-        // Calculate available travel distance (use Math.max(1, ...) to avoid division by zero)
         const maxX = Math.max(1, window.innerWidth - width);
         const maxY = Math.max(1, window.innerHeight - height);
 
-        // Apply ratio to travel distance
         let pixelX = xRatio * maxX;
         let pixelY = yRatio * maxY;
 
-        // Final clamp for safety
         pixelX = Math.max(0, Math.min(pixelX, maxX));
         pixelY = Math.max(0, Math.min(pixelY, maxY));
 
@@ -233,7 +249,6 @@ class WidgetWindow extends HTMLElement {
         const maxX = Math.max(1, window.innerWidth - width);
         const maxY = Math.max(1, window.innerHeight - height);
 
-        // Calculate ratio based on available travel distance, not total screen size
         const xRatio = currentX / maxX;
         const yRatio = currentY / maxY;
 
