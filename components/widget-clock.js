@@ -1,5 +1,17 @@
 const clockTemplate = document.createElement('template');
 clockTemplate.innerHTML = `
+    <!-- Native Web Shader (SVG Filter) -->
+    <svg width="0" height="0" style="position: absolute; pointer-events: none;">
+        <defs>
+            <filter id="optical-refraction" x="-20%" y="-20%" width="140%" height="140%">
+                <!-- Generates smooth, wavy fluid noise -->
+                <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" result="noise" />
+                <!-- Uses the noise to mathematically push/pull the pixels of the text, creating a glass warping effect -->
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+        </defs>
+    </svg>
+
     <style>
         :host {
             display: block;
@@ -15,18 +27,18 @@ clockTemplate.innerHTML = `
             transition: all 0.3s ease;
         }
 
-        /* --- Style 1: Solid (Standard) --- */
+        /* --- Style 1: Solid --- */
         .style-solid {
             color: rgba(255, 255, 255, 0.95);
             text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             -webkit-text-stroke: 0;
             background: none;
             -webkit-text-fill-color: rgba(255, 255, 255, 0.95);
+            filter: none;
         }
 
         /* --- Style 2: Apple Frosted Glass --- */
         .style-glass {
-            /* Simulates light reflecting across the surface of the text */
             background: linear-gradient(
                 135deg, 
                 rgba(255, 255, 255, 1) 0%, 
@@ -36,11 +48,7 @@ clockTemplate.innerHTML = `
             );
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            
-            /* Simulates the physical refractive edge of carved glass */
             -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.5);
-            
-            /* Lifts the glass off the background */
             filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.4));
         }
 
@@ -59,6 +67,22 @@ clockTemplate.innerHTML = `
             filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5));
         }
 
+        /* --- Style 4: Refractive Warped Glass (The Shader) --- */
+        .style-refractive {
+            background: linear-gradient(
+                135deg, 
+                rgba(255, 255, 255, 0.9) 0%, 
+                rgba(255, 255, 255, 0.1) 40%, 
+                rgba(255, 255, 255, 0.7) 60%, 
+                rgba(255, 255, 255, 0.2) 100%
+            );
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            -webkit-text-stroke: 2px rgba(255, 255, 255, 0.6);
+            /* Applies the drop shadow AND routes the text through our SVG shader! */
+            filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.5)) url('#optical-refraction');
+        }
+
     </style>
     <div class="clock-container style-glass" id="timeDisplay">00:00</div>
 `;
@@ -75,7 +99,7 @@ class WidgetClock extends HTMLElement {
                 {
                     id: 'timeformat',
                     label: 'Time Format',
-                    type: 'segmented', // Uses the new macOS pill control we built!
+                    type: 'segmented',
                     options: [
                         { value: '24', label: '24-Hour' },
                         { value: '12', label: '12-Hour' }
@@ -88,8 +112,9 @@ class WidgetClock extends HTMLElement {
                     type: 'select',
                     options: [
                         { value: 'glass', label: 'Frosted Glass' },
-                        { value: 'solid', label: 'Solid White' },
-                        { value: 'holo', label: 'Holographic' }
+                        { value: 'refractive', label: 'Refractive (Warped)' },
+                        { value: 'holo', label: 'Holographic' },
+                        { value: 'solid', label: 'Solid White' }
                     ],
                     default: 'glass'
                 }
@@ -130,9 +155,7 @@ class WidgetClock extends HTMLElement {
 
     updateDesign() {
         const design = this.getAttribute('design') || 'glass';
-        // Strip out any existing style classes
         this.timeDisplay.className = 'clock-container';
-        // Apply the newly selected style
         this.timeDisplay.classList.add(`style-${design}`);
     }
 
