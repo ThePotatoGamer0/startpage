@@ -3,6 +3,8 @@ clockTemplate.innerHTML = `
     <style>
         :host {
             display: block;
+            /* Default color variable that JS will update */
+            --clock-color: #ffffff;
         }
         
         .clock-container {
@@ -15,68 +17,30 @@ clockTemplate.innerHTML = `
             transition: all 0.3s ease;
         }
 
-        /* --- Style 1: Solid White --- */
+        /* --- Style 1: Solid Color --- */
         .style-solid {
-            color: rgba(255, 255, 255, 0.95);
+            color: var(--clock-color);
             text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             -webkit-text-stroke: 0;
             background: none;
-            -webkit-text-fill-color: rgba(255, 255, 255, 0.95);
+            -webkit-text-fill-color: var(--clock-color);
         }
 
-        /* --- Style 2: Frosted Gradient --- */
-        .style-glass {
-            background: linear-gradient(
-                135deg, 
-                rgba(255, 255, 255, 1) 0%, 
-                rgba(255, 255, 255, 0.3) 30%, 
-                rgba(255, 255, 255, 0.8) 70%, 
-                rgba(255, 255, 255, 0.1) 100%
-            );
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.5);
-            filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.4));
-            mix-blend-mode: normal;
-        }
-
-        /* --- Style 3: Apple Vibrancy (Overlay) --- */
-        .style-vibrancy {
-            color: rgba(255, 255, 255, 0.4);
-            mix-blend-mode: overlay;
-            -webkit-text-stroke: 2px rgba(255, 255, 255, 0.6);
-            filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.4));
-            background: none;
-            -webkit-text-fill-color: rgba(255, 255, 255, 0.4);
-        }
-
-        /* --- Style 4: Glass Lens (Color Dodge) --- */
-        .style-lens {
-            color: rgba(255, 255, 255, 0.15);
-            mix-blend-mode: color-dodge;
-            -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.8);
-            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
-            background: none;
-            -webkit-text-fill-color: rgba(255, 255, 255, 0.15);
-        }
-
-        /* --- Style 5: True Knockout Glass --- */
+        /* --- Style 2: Knockout Glass --- */
         .style-knockout {
-            /* 1. Create the frosted glass base */
-            background: rgba(255, 255, 255, 0.15);
+            /* Uses color-mix to intelligently tint the glass based on the chosen color! */
+            background: color-mix(in srgb, var(--clock-color) 15%, transparent);
             backdrop-filter: blur(20px) saturate(150%);
             -webkit-backdrop-filter: blur(20px) saturate(150%);
             
-            /* 2. Clip the background AND the blur to the text vector shape */
             -webkit-background-clip: text;
             background-clip: text;
             
-            /* 3. Hide the actual text color to reveal the blurred background inside */
             color: transparent;
             -webkit-text-fill-color: transparent;
             
-            /* 4. Add the thick glass rim */
-            -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.6);
+            /* Tints the glass rim/stroke */
+            -webkit-text-stroke: 1.5px color-mix(in srgb, var(--clock-color) 60%, transparent);
             filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.4));
         }
 
@@ -105,22 +69,25 @@ class WidgetClock extends HTMLElement {
                 {
                     id: 'design',
                     label: 'Typography Style',
-                    type: 'select',
+                    type: 'segmented', // Changed to segmented since there are only 2 options!
                     options: [
-                        { value: 'knockout', label: 'Knockout Glass (True Blur)' },
-                        { value: 'vibrancy', label: 'Apple Vibrancy (Overlay)' },
-                        { value: 'lens', label: 'Glass Lens (Color Dodge)' },
-                        { value: 'glass', label: 'Frosted Gradient' },
-                        { value: 'solid', label: 'Solid White' }
+                        { value: 'knockout', label: 'Knockout Glass' },
+                        { value: 'solid', label: 'Solid Color' }
                     ],
                     default: 'knockout'
+                },
+                {
+                    id: 'textcolor',
+                    label: 'Clock Color',
+                    type: 'color', // Triggers the native color picker in settings.js
+                    default: '#ffffff'
                 }
             ]
         };
     }
 
     static get observedAttributes() {
-        return ['timeformat', 'design'];
+        return ['timeformat', 'design', 'textcolor'];
     }
 
     constructor() {
@@ -134,6 +101,7 @@ class WidgetClock extends HTMLElement {
     connectedCallback() {
         this.startClock();
         this.updateDesign();
+        this.updateColor();
     }
 
     disconnectedCallback() {
@@ -147,6 +115,8 @@ class WidgetClock extends HTMLElement {
             this.updateTime(); 
         } else if (name === 'design') {
             this.updateDesign();
+        } else if (name === 'textcolor') {
+            this.updateColor();
         }
     }
 
@@ -154,6 +124,12 @@ class WidgetClock extends HTMLElement {
         const design = this.getAttribute('design') || 'knockout';
         this.timeDisplay.className = 'clock-container';
         this.timeDisplay.classList.add(`style-${design}`);
+    }
+
+    updateColor() {
+        const color = this.getAttribute('textcolor') || '#ffffff';
+        // Passes the color down into the CSS variable
+        this.style.setProperty('--clock-color', color);
     }
 
     startClock() {
