@@ -221,13 +221,20 @@ function loadWidgetSettings() {
 
     clockWidgetWindow.style.display = 'block';
 
-    const defaultClockConfig = { xRatio: 0.5, yRatio: 0.2, timeformat: '24' };
+    const defaultClockConfig = { xRatio: 0.5, yRatio: 0.2, timeformat: '24', design: 'knockout' };
     const clockConfigString = localStorage.getItem('sp_widget_clock_config');
     const clockConfig = clockConfigString ? JSON.parse(clockConfigString) : defaultClockConfig;
 
     if (clockConfig.xRatio !== undefined) clockWidgetWindow.setAttribute('x-ratio', clockConfig.xRatio);
     if (clockConfig.yRatio !== undefined) clockWidgetWindow.setAttribute('y-ratio', clockConfig.yRatio);
-    if (clockConfig.timeformat) clockWidgetContent.setAttribute('timeformat', clockConfig.timeformat);
+    
+    // Completely dynamic loader: reads every saved setting and applies it as an HTML attribute!
+    Object.keys(clockConfig).forEach(key => {
+        if (key !== 'xRatio' && key !== 'yRatio') {
+            const val = clockConfig[key];
+            clockWidgetContent.setAttribute(key, typeof val === 'object' ? JSON.stringify(val) : val);
+        }
+    });
 }
 
 
@@ -284,7 +291,6 @@ async function validateUrlInput(url, type) {
             if (res.status === 404) return { valid: false, msg: "That url leads to nothing! Did you make a typo?" };
             if (res.status >= 400) return { valid: false, msg: "That website blocked Startpage from grabbing that wallpaper! Try a different site..." };
             
-            // Re-added the content-type check!
             const contentType = res.headers.get('content-type');
             if (contentType && !contentType.includes('image') && !contentType.includes('json')) {
                 return { valid: false, msg: "That link doesn't seem to point to an image!" };
@@ -307,178 +313,195 @@ async function validateUrlInput(url, type) {
     return { valid: true };
 }
 
-
-// --- Background Logic ---
-const bg1 = document.getElementById('bg1'); 
-const bg2 = document.getElementById('bg2');
-const bgCanvas = document.getElementById('bg-canvas');
-let activeBg = 1;
-let customBgPollTimer = null;
-let kawarpInstance = null;
-
-function debouncePreview(func, wait) {
+// --- Utility: Debounce ---
+function debounce(func, wait) {
     let timeout;
-    return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
+    return function executedFunction(...args) {
+        const later = () => { clearTimeout(timeout); func(...args); };
+        clearTimeout(timeout); timeout = setTimeout(later, wait);
     };
 }
 
-async function updateBackground(rawUrl, forceWarp = null) {
-    if (!rawUrl) return;
+// --- Tab Switching Logic ---
+const tabBtns = document.querySelectorAll('.tab-btn');
+const tabPanes = document.querySelectorAll('.tab-pane');
 
-    let url = rawUrl;
-    if (url.startsWith('http') && !url.startsWith(window.location.origin)) {
-        if (!url.includes('/api/proxy?url=')) { 
-            url = `/api/proxy?url=${encodeURIComponent(rawUrl)}`;
-        }
-    }
+tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        tabBtns.forEach(b => b.classList.remove('active'));
+        tabPanes.forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.getAttribute('data-tab')).classList.add('active');
+    });
+});
 
-    const enableWarp = forceWarp !== null ? forceWarp : (localStorage.getItem('sp_bg_warp') === 'true');
-
-    if (enableWarp) {
-        if (!kawarpInstance) {
-            kawarpInstance = new Kawarp(bgCanvas);
-            kawarpInstance.start(); 
-        }
-        
-        bg1.classList.remove('active');
-        bg2.classList.remove('active');
-        bgCanvas.classList.add('active');
-        
-        try {
-            await kawarpInstance.loadImage(url); 
-        } catch (error) {
-            console.error("Kawarp failed to load image:", error);
-        }
+// --- Wallpaper UI Logic ---
+function updateBgUiState() {
+    if (bgPollToggle.checked) {
+        bgPollIntervalGroup.style.opacity = '1';
+        bgPollIntervalGroup.style.pointerEvents = 'auto';
     } else {
-        if (kawarpInstance) {
-            kawarpInstance.stop();
-            kawarpInstance.dispose();
-            kawarpInstance = null;
-        }
+        bgPollIntervalGroup.style.opacity = '0.5';
+        bgPollIntervalGroup.style.pointerEvents = 'none';
+    }
+}
+bgPollToggle.addEventListener('change', updateBgUiState);
+
+// --- Alias Manager Logic ---
+function renderAliases() {
+    const grid = document.getElementById('aliasGrid');
+    grid.innerHTML = '';
+    searchAliases.forEach((alias, idx) => {
+        grid.innerHTML += `
+            <div class="alias-row">
+                <span class="alias-kw">${alias.keyword}</span>
+                <span class="alias-url" title="${alias.url}">${alias.url}</span>
+                <button class="alias-del" data-idx="${idx}" title="Remove Alias">&times;</button>
+            </div>
+        `;
+    });
+
+    document.querySelectorAll('.alias-del').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const idx = e.target.getAttribute('data-idx');
+            searchAliases.splice(idx, 1);
+            renderAliases();
+        });
+    });
+}
+
+document.getElementById('addAliasBtn').addEventListener('click', async () => {
+    const kwInput = document.getElementById('newAliasKey');
+    const urlInput = document.getElementById('newAliasUrl');
+    const keyword = kwInput.value.trim().toLowerCase();
+    const url = urlInput.value.trim();
+
+    if (keyword && url) {
+        const btn = document.getElementById('addAliasBtn');
+        const orig = btn.innerText;
+        btn.innerText = "...";
         
-        bgCanvas.classList.remove('active');
+        const check = await validateUrlInput(url, 'link');
+        btn.innerText = orig;
         
-        if (activeBg === 1) {
-            bg2.style.backgroundImage = `url('${url}')`; bg2.classList.add('active'); bg1.classList.remove('active'); activeBg = 2;
-        } else {
-            bg1.style.backgroundImage = `url('${url}')`; bg1.classList.add('active'); bg2.classList.remove('active'); activeBg = 1;
+        if (!check.valid) {
+            showError('newAliasUrl', check.msg);
+            return;
         }
+
+        searchAliases.push({ keyword, url });
+        kwInput.value = '';
+        urlInput.value = '';
+        renderAliases();
+    }
+});
+
+// --- Right Click Clear Logic ---
+window.clearIconRightClick = function(event, card) {
+    event.preventDefault();
+    const urlValue = card.querySelector('.bm-url-input').value.trim();
+    const iconHiddenInput = card.querySelector('.bm-icon-input');
+    const mainImg = card.querySelector('.bm-main-img');
+    const refImg = card.querySelector('.bm-favicon-reference');
+
+    iconHiddenInput.value = '';
+    let domain = 'example.com';
+    try { if(urlValue) domain = new URL(urlValue.startsWith('http') ? urlValue : 'https://' + urlValue).hostname; } catch(e) {}
+    const fetchedFavicon = urlValue ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : 'chrome://branding/content/about-logo.png';
+    mainImg.src = fetchedFavicon; refImg.style.display = 'none';
+};
+
+// --- URL Input Handler (Debounced) ---
+function handleUrlChange(card, value) {
+    let domain = 'example.com';
+    try { if (value.trim()) domain = new URL(value.startsWith('http') ? value : 'https://' + value).hostname; } catch(e) {}
+    const faviconUrl = value.trim() ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : 'chrome://branding/content/about-logo.png';
+    const customIcon = card.querySelector('.bm-icon-input').value.trim();
+    const mainImg = card.querySelector('.bm-main-img');
+    const refImg = card.querySelector('.bm-favicon-reference');
+
+    if (customIcon) {
+        if (value.trim()) { refImg.src = faviconUrl; refImg.style.display = 'block'; } 
+        else { refImg.style.display = 'none'; }
+    } else {
+        mainImg.src = faviconUrl; refImg.style.display = 'none';
     }
 }
 
-async function pollAndApplyCustomWallpaper(url, isPolled) {
-    const timeParam = isPolled ? (url.includes('?') ? '&' : '?') + `t=${new Date().getTime()}` : '';
-    const fetchUrl = url + timeParam;
-    let finalImageUrl = fetchUrl;
+// --- Build Bookmark Cards & Initialize SortableJS ---
+function buildBookmarkCards() {
+    bookmarkGrid.innerHTML = '';
+    for (let i = 1; i <= 8; i++) {
+        const savedUrl = localStorage.getItem(`sp_bm${i}_url`) || '';
+        const savedIcon = localStorage.getItem(`sp_bm${i}_icon`) || '';
+        
+        let domain = 'example.com';
+        try { if(savedUrl) domain = new URL(savedUrl.startsWith('http') ? savedUrl : 'https://' + savedUrl).hostname; } catch(e) {}
+        
+        const generatedFavicon = savedUrl ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : 'chrome://branding/content/about-logo.png';
+        const displayIcon = savedIcon || generatedFavicon;
+        const showRefIcon = (savedIcon && savedUrl) ? 'block' : 'none';
 
+        const card = document.createElement('div');
+        card.className = 'bm-card';
+        card.innerHTML = `
+            <div class="bm-logo-container" title="Left-click to edit, Right-click to clear" onclick="openIconModal(this.closest('.bm-card'))" oncontextmenu="clearIconRightClick(event, this.closest('.bm-card'))">
+                <img class="bm-main-img" src="${displayIcon}" onerror="this.src='chrome://branding/content/about-logo.png'">
+                <img class="bm-favicon-reference" src="${generatedFavicon}" style="display: ${showRefIcon};" onerror="this.style.display='none'">
+                <div class="bm-logo-overlay">
+                    <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                </div>
+            </div>
+            <div class="bm-inputs">
+                <label class="bm-slot-label">Slot ${i}</label>
+                <input type="text" class="bm-url-input" id="bm-url-${i}" placeholder="URL" value="${savedUrl}">
+                <input type="hidden" class="bm-icon-input" value="${savedIcon}">
+            </div>
+        `;
+        bookmarkGrid.appendChild(card);
+
+        const urlInput = card.querySelector('.bm-url-input');
+        const debouncedHandler = debounce((val) => handleUrlChange(card, val), 1000);
+        urlInput.addEventListener('input', (e) => debouncedHandler(e.target.value));
+    }
+
+    new Sortable(bookmarkGrid, {
+        animation: 350, 
+        easing: "cubic-bezier(0.2, 0.8, 0.2, 1)", 
+        filter: '.bm-logo-container, input', 
+        preventOnFilter: false,
+        onEnd: function () {
+            document.querySelectorAll('.bm-card').forEach((card, index) => {
+                const label = card.querySelector('.bm-slot-label');
+                if (label) label.innerText = `Slot ${index + 1}`;
+            });
+        }
+    });
+}
+
+// --- Load/Save Settings ---
+async function loadFormValues() {
     try {
-        const proxyUrl = `/api/proxy?url=${encodeURIComponent(fetchUrl)}`;
-        const res = await fetch(proxyUrl, { headers: { 'Accept': 'application/json, image/*, */*' } });
-        const contentType = res.headers.get('content-type');
-        
-        if (contentType && contentType.includes('application/json')) {
-            const data = await res.json();
-            
-            const findUrl = (obj) => {
-                let fallback = null;
-                const search = (node) => {
-                    if (typeof node === 'string' && node.startsWith('http')) {
-                        if (node.match(/\.(jpeg|jpg|gif|png|webp)/i)) return node;
-                        if (!fallback) fallback = node; 
-                    }
-                    if (typeof node === 'object' && node !== null) {
-                        for (let k of ['url', 'file', 'message', 'link', 'image']) {
-                            if (typeof node[k] === 'string' && node[k].startsWith('http')) return node[k];
-                        }
-                        for (let k in node) {
-                            let res = search(node[k]);
-                            if (res) return res;
-                        }
-                    }
-                    return null;
-                };
-                return search(obj) || fallback;
-            };
-            
-            const extracted = findUrl(data);
-            if (extracted) finalImageUrl = extracted;
-        }
-    } catch (e) {
-        console.warn("Smart fetch failed, trying direct CSS injection...", e);
-    }
+        const response = await fetch('/settings/icons.json');
+        if (response.ok) allIcons = await response.json();
+    } catch (e) { console.warn("Could not load icons.json."); }
 
-    updateBackground(finalImageUrl);
-}
-
-// --- Browser Detection Logic ---
-async function detectBrowser() {
-    const ua = navigator.userAgent;
-    let brands = [];
+    if (defaultProviderSelect) defaultProviderSelect.value = localStorage.getItem('sp_provider') || 'startpage';
+    if (searchSuggestionSelect) searchSuggestionSelect.value = localStorage.getItem('sp_search_suggestions') || 'match';
     
-    if (navigator.userAgentData && navigator.userAgentData.brands) {
-        brands = navigator.userAgentData.brands.map(b => b.brand);
-    }
+    if (blurInput) blurInput.value = localStorage.getItem('sp_blur') || '0';
+    if (logoUrlInput) logoUrlInput.value = localStorage.getItem('sp_logo') || 'chrome://branding/content/about-logo.png';
 
-    if (brands.includes("Vivaldi") || window.vivaldi) {
-        return { name: "Vivaldi", logo: "browserlogos/vivaldi.svg" };
-    }
-    if (navigator.brave && await navigator.brave.isBrave()) {
-        return { name: "Brave", logo: "browserlogos/brave.svg" };
-    }
-    if (ua.includes("Firefox") || ua.includes("FxiOS") || ua.includes("LibreWolf")) {
-        return { name: "Firefox", logo: "chrome://branding/content/about-logo.png" };
-    }
-    if (ua.includes("Edition GX") || ua.includes("OPRGX")) {
-        return { name: "Opera GX", logo: "browserlogos/opera-gx.svg" };
-    }
-    if (ua.includes("OPR/") || ua.includes("Opera") || brands.includes("Opera")) {
-        return { name: "Opera", logo: "browserlogos/opera.svg" };
-    }
-    if (ua.includes("Edg/") || brands.includes("Microsoft Edge")) {
-        return { name: "Microsoft Edge", logo: "browserlogos/edge.svg" };
-    }
-    if (ua.includes("SamsungBrowser") || brands.includes("Samsung Internet")) {
-        return { name: "Samsung Internet", logo: "browserlogos/samsung-internet.svg" };
-    }
-    if (ua.includes("Safari") && !ua.includes("Chrome") && !ua.includes("Chromium")) {
-        return { name: "Safari", logo: "browserlogos/safari.svg" };
-    }
-    if (brands.includes("Google Chrome") || ua.includes("Chrome")) {
-        return { name: "Google Chrome", logo: "browserlogos/chrome.svg" };
-    }
-    if (brands.includes("Chromium")) {
-        return { name: "Chromium", logo: "browserlogos/chromium.svg" };
-    }
-    
-    return { name: "Chromium Browser", logo: "browserlogos/chromium.svg" };
-}
+    // Wallpaper
+    bgWarpToggle.checked = localStorage.getItem('sp_bg_warp') === 'true';
+    bgUrlInput.value = localStorage.getItem('sp_bg_url') || '';
+    bgPollToggle.checked = localStorage.getItem('sp_bg_poll') === 'true';
+    bgPollIntervalInput.value = localStorage.getItem('sp_bg_poll_interval') || '60';
+    updateBgUiState();
 
-const mainLogo = document.getElementById('mainLogo');
-
-async function loadSettings() {
-    if (!localStorage.getItem('sp_onboarding_complete')) {
-        initOnboarding();
-        return;
-    }
-
-    const savedProvider = localStorage.getItem('sp_provider') || 'startpage';
-    const savedBlur = localStorage.getItem('sp_blur') || '0';
-    let savedLogo = localStorage.getItem('sp_logo');
-    
-    if (!savedLogo) {
-        const detected = await detectBrowser();
-        savedLogo = detected.logo;
-    }
-
-    setActiveProvider(savedProvider);
-    bg1.style.filter = `blur(${savedBlur}px)`; bg2.style.filter = `blur(${savedBlur}px)`;
-    bgCanvas.style.filter = `blur(${savedBlur}px)`;
-    mainLogo.src = savedLogo;
-
-    renderBookmarks();
-    loadWidgetSettings(); 
+    renderAliases();
+    buildBookmarkCards();
+    initWidgetsTab(); 
 
     const customUrl = localStorage.getItem('sp_bg_url') || '';
     const pollBg = localStorage.getItem('sp_bg_poll') === 'true';
