@@ -1,3 +1,7 @@
+// Explicitly import your widgets so they are guaranteed to register before initialization
+import '../components/widget-clock.js';
+import '../components/widget-greeting.js';
+
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 const defaultProviderSelect = document.getElementById('defaultProviderSelect');
 const searchSuggestionSelect = document.getElementById('searchSuggestionSelect');
@@ -33,7 +37,6 @@ const widgetSelect = document.getElementById('widgetSelect');
 const dynamicWidgetSettings = document.getElementById('dynamicWidgetSettings');
 const widgetPreviewContainer = document.getElementById('widgetPreviewContainer');
 
-// Register all your content widgets here (excluding widget-window shell)
 const activeWidgetTags = ['widget-clock', 'widget-greeting']; 
 let widgetConfigState = {}; 
 

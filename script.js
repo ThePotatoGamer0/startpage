@@ -196,45 +196,75 @@ const editWidgetsBtn = document.getElementById('editWidgetsBtn');
 const clockWidgetWindow = document.getElementById('clockWidgetWindow');
 const clockWidgetContent = document.getElementById('clockWidgetContent');
 
+const greetingWidgetWindow = document.getElementById('greetingWidgetWindow');
+const greetingWidgetContent = document.getElementById('greetingWidgetContent');
+
 editWidgetsBtn.addEventListener('click', () => {
     document.body.classList.toggle('widget-edit-mode');
 });
 
+// Generic listener for saving any widget's position ratio
 document.addEventListener('widget-updated', (e) => {
-    if (e.detail.id === 'clockWidgetWindow') {
-        const config = JSON.parse(localStorage.getItem('sp_widget_clock_config') || '{}');
+    const windowId = e.detail.id;
+    let configKey = null;
+
+    if (windowId === 'clockWidgetWindow') configKey = 'sp_widget_clock_config';
+    if (windowId === 'greetingWidgetWindow') configKey = 'sp_widget_greeting_config';
+
+    if (configKey) {
+        const config = JSON.parse(localStorage.getItem(configKey) || '{}');
         config.xRatio = e.detail.xRatio;
         config.yRatio = e.detail.yRatio;
         delete config.x;
         delete config.y;
-        localStorage.setItem('sp_widget_clock_config', JSON.stringify(config));
+        localStorage.setItem(configKey, JSON.stringify(config));
     }
 });
 
 function loadWidgetSettings() {
     const isWidgetsEnabled = localStorage.getItem('sp_widgets_enabled') !== 'false';
     
-    if (!isWidgetsEnabled) {
-        clockWidgetWindow.style.display = 'none';
-        return;
+    // 1. Load Clock Widget
+    if (clockWidgetWindow && clockWidgetContent) {
+        if (!isWidgetsEnabled) {
+            clockWidgetWindow.style.display = 'none';
+        } else {
+            clockWidgetWindow.style.display = 'block';
+            const defaultClockConfig = { xRatio: 0.5, yRatio: 0.2, timeformat: '24', design: 'knockout' };
+            const clockConfig = JSON.parse(localStorage.getItem('sp_widget_clock_config') || JSON.stringify(defaultClockConfig));
+
+            if (clockConfig.xRatio !== undefined) clockWidgetWindow.setAttribute('x-ratio', clockConfig.xRatio);
+            if (clockConfig.yRatio !== undefined) clockWidgetWindow.setAttribute('y-ratio', clockConfig.yRatio);
+            
+            Object.keys(clockConfig).forEach(key => {
+                if (key !== 'xRatio' && key !== 'yRatio') {
+                    const val = clockConfig[key];
+                    clockWidgetContent.setAttribute(key, typeof val === 'object' ? JSON.stringify(val) : val);
+                }
+            });
+        }
     }
 
-    clockWidgetWindow.style.display = 'block';
+    // 2. Load Greeting Widget
+    if (greetingWidgetWindow && greetingWidgetContent) {
+        if (!isWidgetsEnabled) {
+            greetingWidgetWindow.style.display = 'none';
+        } else {
+            greetingWidgetWindow.style.display = 'block';
+            const defaultGreetingConfig = { xRatio: 0.5, yRatio: 0.1, username: 'Friend', design: 'knockout', textcolor: '#ffffff', fontsize: '3' };
+            const greetingConfig = JSON.parse(localStorage.getItem('sp_widget_greeting_config') || JSON.stringify(defaultGreetingConfig));
 
-    const defaultClockConfig = { xRatio: 0.5, yRatio: 0.2, timeformat: '24', design: 'knockout' };
-    const clockConfigString = localStorage.getItem('sp_widget_clock_config');
-    const clockConfig = clockConfigString ? JSON.parse(clockConfigString) : defaultClockConfig;
-
-    if (clockConfig.xRatio !== undefined) clockWidgetWindow.setAttribute('x-ratio', clockConfig.xRatio);
-    if (clockConfig.yRatio !== undefined) clockWidgetWindow.setAttribute('y-ratio', clockConfig.yRatio);
-    
-    // Completely dynamic loader: reads every saved setting and applies it as an HTML attribute!
-    Object.keys(clockConfig).forEach(key => {
-        if (key !== 'xRatio' && key !== 'yRatio') {
-            const val = clockConfig[key];
-            clockWidgetContent.setAttribute(key, typeof val === 'object' ? JSON.stringify(val) : val);
+            if (greetingConfig.xRatio !== undefined) greetingWidgetWindow.setAttribute('x-ratio', greetingConfig.xRatio);
+            if (greetingConfig.yRatio !== undefined) greetingWidgetWindow.setAttribute('y-ratio', greetingConfig.yRatio);
+            
+            Object.keys(greetingConfig).forEach(key => {
+                if (key !== 'xRatio' && key !== 'yRatio') {
+                    const val = greetingConfig[key];
+                    greetingWidgetContent.setAttribute(key, typeof val === 'object' ? JSON.stringify(val) : val);
+                }
+            });
         }
-    });
+    }
 }
 
 // --- Validation Logic ---
