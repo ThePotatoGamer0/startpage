@@ -3,18 +3,19 @@ clockTemplate.innerHTML = `
     <style>
         :host {
             display: block;
-            /* Default color variable that JS will update */
             --clock-color: #ffffff;
+            --clock-size: 6rem; /* Dynamic font size variable */
         }
         
         .clock-container {
             font-family: 'Google Sans Flex', system-ui, -apple-system, sans-serif;
-            font-size: 6rem;
+            font-size: var(--clock-size);
             font-weight: 500;
-            letter-spacing: -3px;
+            letter-spacing: calc(var(--clock-size) * -0.05); /* Scales negative tracking with font size */
             text-align: center;
-            padding: 10px 30px;
+            padding: calc(var(--clock-size) * 0.1) calc(var(--clock-size) * 0.3);
             transition: all 0.3s ease;
+            line-height: 1;
         }
 
         /* --- Style 1: Solid Color --- */
@@ -28,7 +29,6 @@ clockTemplate.innerHTML = `
 
         /* --- Style 2: Knockout Glass --- */
         .style-knockout {
-            /* Uses color-mix to intelligently tint the glass based on the chosen color! */
             background: color-mix(in srgb, var(--clock-color) 15%, transparent);
             backdrop-filter: blur(20px) saturate(150%);
             -webkit-backdrop-filter: blur(20px) saturate(150%);
@@ -39,7 +39,6 @@ clockTemplate.innerHTML = `
             color: transparent;
             -webkit-text-fill-color: transparent;
             
-            /* Tints the glass rim/stroke */
             -webkit-text-stroke: 1.5px color-mix(in srgb, var(--clock-color) 60%, transparent);
             filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.4));
         }
@@ -69,7 +68,7 @@ class WidgetClock extends HTMLElement {
                 {
                     id: 'design',
                     label: 'Typography Style',
-                    type: 'segmented', // Changed to segmented since there are only 2 options!
+                    type: 'segmented',
                     options: [
                         { value: 'knockout', label: 'Knockout Glass' },
                         { value: 'solid', label: 'Solid Color' }
@@ -79,15 +78,24 @@ class WidgetClock extends HTMLElement {
                 {
                     id: 'textcolor',
                     label: 'Clock Color',
-                    type: 'color', // Triggers the native color picker in settings.js
+                    type: 'color',
                     default: '#ffffff'
+                },
+                {
+                    id: 'fontsize',
+                    label: 'Scale (rem)',
+                    type: 'range',
+                    min: '2',
+                    max: '12',
+                    step: '0.5',
+                    default: '6'
                 }
             ]
         };
     }
 
     static get observedAttributes() {
-        return ['timeformat', 'design', 'textcolor'];
+        return ['timeformat', 'design', 'textcolor', 'fontsize'];
     }
 
     constructor() {
@@ -102,6 +110,7 @@ class WidgetClock extends HTMLElement {
         this.startClock();
         this.updateDesign();
         this.updateColor();
+        this.updateSize();
     }
 
     disconnectedCallback() {
@@ -117,6 +126,8 @@ class WidgetClock extends HTMLElement {
             this.updateDesign();
         } else if (name === 'textcolor') {
             this.updateColor();
+        } else if (name === 'fontsize') {
+            this.updateSize();
         }
     }
 
@@ -128,8 +139,12 @@ class WidgetClock extends HTMLElement {
 
     updateColor() {
         const color = this.getAttribute('textcolor') || '#ffffff';
-        // Passes the color down into the CSS variable
         this.style.setProperty('--clock-color', color);
+    }
+
+    updateSize() {
+        const size = this.getAttribute('fontsize') || '6';
+        this.style.setProperty('--clock-size', `${size}rem`);
     }
 
     startClock() {
