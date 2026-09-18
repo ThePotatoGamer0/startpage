@@ -33,13 +33,15 @@ const widgetSelect = document.getElementById('widgetSelect');
 const dynamicWidgetSettings = document.getElementById('dynamicWidgetSettings');
 const widgetPreviewContainer = document.getElementById('widgetPreviewContainer');
 
-const activeWidgetTags = ['widget-clock']; 
+// Register all your content widgets here (excluding widget-window shell)
+const activeWidgetTags = ['widget-clock', 'widget-greeting']; 
 let widgetConfigState = {}; 
 
 async function initWidgetsTab() {
     widgetsEnableToggle.checked = localStorage.getItem('sp_widgets_enabled') !== 'false';
     
-    await customElements.whenDefined('widget-clock');
+    // Wait for all active components to be defined
+    await Promise.all(activeWidgetTags.map(tag => customElements.whenDefined(tag)));
 
     widgetSelect.innerHTML = '';
     
@@ -55,8 +57,8 @@ async function initWidgetsTab() {
             widgetSelect.appendChild(opt);
 
             const saved = JSON.parse(localStorage.getItem(`sp_widget_${schema.id}_config`) || '{}');
-            if (saved.x === undefined) saved.x = 80;
-            if (saved.y === undefined) saved.y = 80;
+            if (saved.xRatio === undefined) saved.xRatio = 0.5;
+            if (saved.yRatio === undefined) saved.yRatio = 0.2;
             
             schema.fields.forEach(f => {
                 if (saved[f.id] === undefined) saved[f.id] = f.default;
@@ -265,153 +267,6 @@ function renderWidgetSettingsForm() {
                 group.appendChild(segContainer);
                 break;
             }
-
-            case 'multiselect': {
-                const limit = field.max || 999;
-                let selectedArr = Array.isArray(currentState[field.id]) ? currentState[field.id] : [];
-                
-                const msContainer = document.createElement('div');
-                msContainer.className = 'checkbox-group';
-
-                const updateLimits = () => {
-                    const checkboxes = msContainer.querySelectorAll('input[type="checkbox"]');
-                    const isAtLimit = selectedArr.length >= limit;
-                    checkboxes.forEach(cb => {
-                        if (!cb.checked) {
-                            cb.disabled = isAtLimit;
-                            cb.parentElement.style.opacity = isAtLimit ? '0.4' : '1';
-                        }
-                    });
-                };
-
-                field.options.forEach(opt => {
-                    const cbLabel = document.createElement('label');
-                    cbLabel.className = 'checkbox-label';
-                    const cb = document.createElement('input');
-                    cb.type = 'checkbox';
-                    cb.value = opt.value;
-                    cb.checked = selectedArr.includes(opt.value);
-                    
-                    cb.addEventListener('change', (e) => {
-                        if (e.target.checked) {
-                            selectedArr.push(opt.value);
-                        } else {
-                            selectedArr = selectedArr.filter(v => v !== opt.value);
-                        }
-                        updateLimits();
-                        updateState(selectedArr);
-                    });
-
-                    cbLabel.appendChild(cb);
-                    cbLabel.appendChild(document.createTextNode(' ' + opt.label));
-                    msContainer.appendChild(cbLabel);
-                });
-
-                updateLimits();
-                group.appendChild(msContainer);
-                break;
-            }
-
-            case 'list': {
-                let listArr = Array.isArray(currentState[field.id]) ? currentState[field.id] : [];
-                
-                const listContainer = document.createElement('div');
-                
-                const addDiv = document.createElement('div');
-                addDiv.style.display = 'flex';
-                addDiv.style.gap = '8px';
-                addDiv.style.marginBottom = '12px';
-                
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.className = 'form-input';
-                input.placeholder = field.placeholder || 'Add item...';
-                
-                const addBtn = document.createElement('button');
-                addBtn.className = 'btn btn-primary';
-                addBtn.innerText = 'Add';
-                addBtn.style.padding = '0 20px';
-                
-                addDiv.appendChild(input);
-                addDiv.appendChild(addBtn);
-                listContainer.appendChild(addDiv);
-
-                const itemsDiv = document.createElement('div');
-                itemsDiv.style.display = 'flex';
-                itemsDiv.style.flexDirection = 'column';
-                itemsDiv.style.gap = '8px';
-                listContainer.appendChild(itemsDiv);
-
-                const renderListItems = () => {
-                    itemsDiv.innerHTML = '';
-                    listArr.forEach((itemText, idx) => {
-                        const row = document.createElement('div');
-                        row.style.display = 'flex';
-                        row.style.alignItems = 'center';
-                        row.style.gap = '12px';
-                        row.style.background = 'rgba(0,0,0,0.3)';
-                        row.style.padding = '10px 16px';
-                        row.style.borderRadius = '12px';
-                        row.style.border = '1px solid rgba(255,255,255,0.1)';
-                        
-                        const dragHandle = document.createElement('div');
-                        dragHandle.innerHTML = '⋮⋮';
-                        dragHandle.style.cursor = 'grab';
-                        dragHandle.style.color = 'rgba(255,255,255,0.4)';
-                        
-                        const text = document.createElement('div');
-                        text.innerText = itemText;
-                        text.style.flex = '1';
-                        
-                        const delBtn = document.createElement('button');
-                        delBtn.innerHTML = '&times;';
-                        delBtn.style.background = 'none';
-                        delBtn.style.border = 'none';
-                        delBtn.style.color = '#ff5555';
-                        delBtn.style.fontSize = '1.2rem';
-                        delBtn.style.cursor = 'pointer';
-                        
-                        delBtn.addEventListener('click', () => {
-                            listArr.splice(idx, 1);
-                            renderListItems();
-                            updateState(listArr);
-                        });
-
-                        row.appendChild(dragHandle);
-                        row.appendChild(text);
-                        row.appendChild(delBtn);
-                        itemsDiv.appendChild(row);
-                    });
-                };
-
-                addBtn.addEventListener('click', () => {
-                    if (input.value.trim()) {
-                        listArr.push(input.value.trim());
-                        input.value = '';
-                        renderListItems();
-                        updateState(listArr);
-                    }
-                });
-
-                renderListItems();
-                
-                setTimeout(() => {
-                    if (window.Sortable) {
-                        new Sortable(itemsDiv, {
-                            animation: 150,
-                            handle: 'div',
-                            onEnd: (evt) => {
-                                const movedItem = listArr.splice(evt.oldIndex, 1)[0];
-                                listArr.splice(evt.newIndex, 0, movedItem);
-                                updateState(listArr);
-                            }
-                        });
-                    }
-                }, 100);
-
-                group.appendChild(listContainer);
-                break;
-            }
         }
         
         dynamicWidgetSettings.appendChild(group);
@@ -472,7 +327,6 @@ async function validateUrlInput(url, type) {
             if (res.status === 404) return { valid: false, msg: "That url leads to nothing! Did you make a typo?" };
             if (res.status >= 400) return { valid: false, msg: "That website blocked Startpage from grabbing that wallpaper! Try a different site..." };
             
-            // Re-added the content-type check!
             const contentType = res.headers.get('content-type');
             if (contentType && !contentType.includes('image') && !contentType.includes('json')) {
                 return { valid: false, msg: "That link doesn't seem to point to an image!" };
