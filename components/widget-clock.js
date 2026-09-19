@@ -26,24 +26,27 @@ clockTemplate.innerHTML = `
             -webkit-text-fill-color: var(--clock-color);
         }
 
-        /* --- Style 2: Knockout Glass --- */
+        /* --- Style 2: Pure Knockout Glass --- */
         .style-knockout {
-            background: color-mix(in srgb, var(--clock-color) 15%, transparent);
-            backdrop-filter: blur(20px) saturate(150%);
-            -webkit-backdrop-filter: blur(20px) saturate(150%);
+            /* 1. Extremely strong blur applied to the background */
+            backdrop-filter: blur(40px) saturate(200%);
+            -webkit-backdrop-filter: blur(40px) saturate(200%);
             
+            /* 2. Faint tint so your color picker still adds a subtle hue to the glass */
+            background: color-mix(in srgb, var(--clock-color) 15%, transparent);
+            
+            /* 3. Clip the blurred background strictly to the shape of the text */
             -webkit-background-clip: text;
             background-clip: text;
             
+            /* 4. Hide the solid text to reveal the blur underneath */
             color: transparent;
             -webkit-text-fill-color: transparent;
+            
+            /* Pure stencil: Zero strokes, zero shadows, no extra effects */
             -webkit-text-stroke: 0;
             text-shadow: none;
-            
-            /* The Magic Fix: A tight 1px drop-shadow creates a perfectly rounded outer rim with zero miter spikes */
-            filter: 
-                drop-shadow(0 0 1px color-mix(in srgb, var(--clock-color) 80%, transparent))
-                drop-shadow(0 10px 25px rgba(0, 0, 0, 0.4));
+            filter: none;
         }
 
     </style>
