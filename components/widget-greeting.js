@@ -25,26 +25,23 @@ greetingTemplate.innerHTML = `
             -webkit-text-stroke: 0;
             background: none;
             -webkit-text-fill-color: var(--greeting-color);
+            mix-blend-mode: normal;
         }
 
-        /* --- Style 2: Pure Knockout Glass --- */
+        /* --- Style 2: Pure Lens Stencil --- */
         .style-knockout {
-            /* 1. Extremely strong blur applied to the background */
-            backdrop-filter: blur(40px) saturate(200%);
-            -webkit-backdrop-filter: blur(40px) saturate(200%);
+            /* We use a slight transparency mixed with the color picker value */
+            color: color-mix(in srgb, var(--greeting-color) 75%, transparent);
+            -webkit-text-fill-color: color-mix(in srgb, var(--greeting-color) 75%, transparent);
             
-            /* 2. Faint tint so your color picker still adds a subtle hue to the glass */
-            background: color-mix(in srgb, var(--greeting-color) 15%, transparent);
+            /* The Magic: Overlay forces the text to blend and bend the contrast of the wallpaper behind it */
+            mix-blend-mode: overlay;
             
-            /* 3. Clip the blurred background strictly to the shape of the text */
-            -webkit-background-clip: text;
-            background-clip: text;
-            
-            /* 4. Hide the solid text to reveal the blur underneath */
-            color: transparent;
-            -webkit-text-fill-color: transparent;
-            
-            /* Pure stencil: Zero strokes, zero shadows, no extra effects */
+            /* Pure stencil: Zero backgrounds, strokes, or shadows */
+            background: none;
+            -webkit-background-clip: unset;
+            background-clip: unset;
+            backdrop-filter: none;
             -webkit-text-stroke: 0;
             text-shadow: none;
             filter: none;
@@ -73,7 +70,7 @@ class WidgetGreeting extends HTMLElement {
                     label: 'Typography Style',
                     type: 'segmented',
                     options: [
-                        { value: 'knockout', label: 'Knockout Glass' },
+                        { value: 'knockout', label: 'Lens Stencil' },
                         { value: 'solid', label: 'Solid Color' }
                     ],
                     default: 'knockout'
@@ -115,7 +112,6 @@ class WidgetGreeting extends HTMLElement {
         this.updateColor();
         this.updateSize();
 
-        // Check every minute in case the time block changes
         this.checkInterval = setInterval(() => this.updateGreeting(), 60000);
     }
 
