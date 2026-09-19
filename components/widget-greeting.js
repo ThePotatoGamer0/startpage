@@ -38,14 +38,13 @@ greetingTemplate.innerHTML = `
             
             color: transparent;
             -webkit-text-fill-color: transparent;
-            
             -webkit-text-stroke: 0;
-            text-shadow: 
-                -1.5px -1.5px 0 color-mix(in srgb, var(--greeting-color) 60%, transparent),
-                 1.5px -1.5px 0 color-mix(in srgb, var(--greeting-color) 60%, transparent),
-                -1.5px  1.5px 0 color-mix(in srgb, var(--greeting-color) 60%, transparent),
-                 1.5px  1.5px 0 color-mix(in srgb, var(--greeting-color) 60%, transparent),
-                 0 10px 25px rgba(0, 0, 0, 0.4);
+            text-shadow: none;
+            
+            /* The Magic Fix: A tight 1px drop-shadow creates a perfectly rounded outer rim with zero miter spikes */
+            filter: 
+                drop-shadow(0 0 1px color-mix(in srgb, var(--greeting-color) 80%, transparent))
+                drop-shadow(0 10px 25px rgba(0, 0, 0, 0.4));
         }
     </style>
     <div class="greeting-container style-knockout" id="greetingDisplay">Hello, World</div>
