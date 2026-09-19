@@ -4,7 +4,7 @@ greetingTemplate.innerHTML = `
         :host {
             display: block;
             --greeting-color: #ffffff;
-            --greeting-size: 3rem; /* Slightly smaller default since text is longer than a clock */
+            --greeting-size: 3rem;
         }
         
         .greeting-container {
@@ -14,7 +14,6 @@ greetingTemplate.innerHTML = `
             letter-spacing: calc(var(--greeting-size) * -0.03);
             text-align: center;
             padding: calc(var(--greeting-size) * 0.2) calc(var(--greeting-size) * 0.4);
-            transition: all 0.3s ease;
             line-height: 1.2;
             white-space: nowrap;
         }
@@ -40,8 +39,13 @@ greetingTemplate.innerHTML = `
             color: transparent;
             -webkit-text-fill-color: transparent;
             
-            -webkit-text-stroke: 1.5px color-mix(in srgb, var(--greeting-color) 60%, transparent);
-            filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.4));
+            -webkit-text-stroke: 0;
+            text-shadow: 
+                -1.5px -1.5px 0 color-mix(in srgb, var(--greeting-color) 60%, transparent),
+                 1.5px -1.5px 0 color-mix(in srgb, var(--greeting-color) 60%, transparent),
+                -1.5px  1.5px 0 color-mix(in srgb, var(--greeting-color) 60%, transparent),
+                 1.5px  1.5px 0 color-mix(in srgb, var(--greeting-color) 60%, transparent),
+                 0 10px 25px rgba(0, 0, 0, 0.4);
         }
     </style>
     <div class="greeting-container style-knockout" id="greetingDisplay">Hello, World</div>
@@ -151,9 +155,8 @@ class WidgetGreeting extends HTMLElement {
         const hour = new Date().getHours();
         const username = this.getAttribute('username') || 'Friend';
 
-        // 6 distinct variations mapped to 3-hour increments
         const pools = {
-            night: [ // 00:00 - 02:59
+            night: [
                 `Up late, ${username}?`,
                 `Burning the midnight oil, ${username}?`,
                 `The night is young, ${username}.`,
@@ -161,7 +164,7 @@ class WidgetGreeting extends HTMLElement {
                 `Rest well soon, ${username}.`,
                 `Stargazing, ${username}?`
             ],
-            dawn: [ // 03:00 - 05:59
+            dawn: [
                 `Early bird, ${username}!`,
                 `The world is asleep, ${username}.`,
                 `Before the sun rises, ${username}.`,
@@ -169,7 +172,7 @@ class WidgetGreeting extends HTMLElement {
                 `Peaceful morning, ${username}.`,
                 `Up with the stars, ${username}?`
             ],
-            morning: [ // 06:00 - 08:59
+            morning: [
                 `Good morning, ${username}!`,
                 `Rise and shine, ${username}.`,
                 `Ready to conquer the day, ${username}?`,
@@ -177,7 +180,7 @@ class WidgetGreeting extends HTMLElement {
                 `A bright morning to you, ${username}.`,
                 `Let's get to work, ${username}.`
             ],
-            lateMorning: [ // 09:00 - 11:59
+            lateMorning: [
                 `Productive hours, ${username}?`,
                 `In the zone, ${username}?`,
                 `Making progress, ${username}?`,
@@ -185,7 +188,7 @@ class WidgetGreeting extends HTMLElement {
                 `Almost lunchtime, ${username}.`,
                 `Flow state active, ${username}.`
             ],
-            afternoon: [ // 12:00 - 14:59
+            afternoon: [
                 `Good afternoon, ${username}!`,
                 `Afternoon slump or second wind, ${username}?`,
                 `Stay hydrated, ${username}!`,
@@ -193,7 +196,7 @@ class WidgetGreeting extends HTMLElement {
                 `Keep pushing forward, ${username}.`,
                 `Afternoon focus, ${username}.`
             ],
-            lateAfternoon: [ // 15:00 - 17:59
+            lateAfternoon: [
                 `Wrapping up soon, ${username}?`,
                 `The afternoon golden hour, ${username}.`,
                 `You've done a lot today, ${username}.`,
@@ -201,7 +204,7 @@ class WidgetGreeting extends HTMLElement {
                 `Evening approaching, ${username}.`,
                 `Final push, ${username}.`
             ],
-            evening: [ // 18:00 - 20:59
+            evening: [
                 `Good evening, ${username}!`,
                 `Time to unwind, ${username}.`,
                 `How was your day, ${username}?`,
@@ -209,7 +212,7 @@ class WidgetGreeting extends HTMLElement {
                 `Evening vibes, ${username}.`,
                 `Disconnecting soon, ${username}?`
             ],
-            nightOwl: [ // 21:00 - 23:59
+            nightOwl: [
                 `Winding down, ${username}?`,
                 `Late night chilling, ${username}.`,
                 `Reflecting on the day, ${username}.`,
@@ -229,8 +232,7 @@ class WidgetGreeting extends HTMLElement {
         else if (hour >= 18 && hour < 21) currentPool = pools.evening;
         else currentPool = pools.nightOwl;
 
-        // Pick one pseudo-randomly based on the current day so it stays consistent for a few hours
-        const daySeed = Math.floor(new Date().getTime() / (1000 * 60 * 90)); // changes every 90 mins
+        const daySeed = Math.floor(new Date().getTime() / (1000 * 60 * 90));
         const index = daySeed % currentPool.length;
         
         return currentPool[index];

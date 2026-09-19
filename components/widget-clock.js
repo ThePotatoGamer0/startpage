@@ -4,17 +4,16 @@ clockTemplate.innerHTML = `
         :host {
             display: block;
             --clock-color: #ffffff;
-            --clock-size: 6rem; /* Dynamic font size variable */
+            --clock-size: 6rem;
         }
         
         .clock-container {
             font-family: 'Google Sans Flex', system-ui, -apple-system, sans-serif;
             font-size: var(--clock-size);
             font-weight: 500;
-            letter-spacing: calc(var(--clock-size) * -0.05); /* Scales negative tracking with font size */
+            letter-spacing: calc(var(--clock-size) * -0.05);
             text-align: center;
             padding: calc(var(--clock-size) * 0.1) calc(var(--clock-size) * 0.3);
-            transition: all 0.3s ease;
             line-height: 1;
         }
 
@@ -39,8 +38,13 @@ clockTemplate.innerHTML = `
             color: transparent;
             -webkit-text-fill-color: transparent;
             
-            -webkit-text-stroke: 1.5px color-mix(in srgb, var(--clock-color) 60%, transparent);
-            filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.4));
+            -webkit-text-stroke: 0;
+            text-shadow: 
+                -1.5px -1.5px 0 color-mix(in srgb, var(--clock-color) 60%, transparent),
+                 1.5px -1.5px 0 color-mix(in srgb, var(--clock-color) 60%, transparent),
+                -1.5px  1.5px 0 color-mix(in srgb, var(--clock-color) 60%, transparent),
+                 1.5px  1.5px 0 color-mix(in srgb, var(--clock-color) 60%, transparent),
+                 0 10px 25px rgba(0, 0, 0, 0.4);
         }
 
     </style>
