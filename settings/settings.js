@@ -661,10 +661,10 @@ function selectIcon(element, url) {
     element.classList.add('selected'); currentlySelectedIconUrl = url; customIconInput.value = ''; 
 }
 
-function openIconModal(card) {
+window.openIconModal = function(card) {
     currentEditingCard = card; iconModal.classList.add('show'); iconSearchInput.value = '';
     customIconInput.value = card.querySelector('.bm-icon-input').value; currentlySelectedIconUrl = null; renderIconGrid();
-}
+};
 
 function closeIconModal() { iconModal.classList.remove('show'); currentEditingCard = null; }
 
