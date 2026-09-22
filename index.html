@@ -152,20 +152,46 @@
         .bookmark-item:hover { transform: translateY(-4px); background: rgba(30, 30, 40, 0.6); border-color: rgba(255, 255, 255, 0.3); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
         .bookmark-item img { width: 28px; height: 28px; object-fit: contain; border-radius: 6px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
 
+/* The invisible hover area */
+        .controls-zone {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: 140px;
+            height: 180px;
+            z-index: 60;
+        }
+
         .settings-btn {
-            position: fixed; right: 24px; width: 44px; height: 44px;
+            position: absolute; right: 24px; width: 44px; height: 44px;
             background: rgba(30, 30, 40, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 50%;
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: flex;
-            align-items: center; justify-content: center; cursor: pointer; z-index: 60;
-            transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); padding: 0;
+            align-items: center; justify-content: center; cursor: pointer; padding: 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            
+            /* Hidden by default */
+            opacity: 0;
+            transform: translateY(15px);
+            pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Creates a subtle spring effect */
         }
-        .settings-btn:hover { background: rgba(30, 30, 40, 0.7); }
+        
         .settings-btn svg { width: 22px; height: 22px; fill: #ffffff; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transition: transform 0.3s ease;}
         
         #mainSettingsBtn { bottom: 24px; }
-        #mainSettingsBtn:hover svg { transform: rotate(45deg); }
+        #editWidgetsBtn { bottom: 80px; transition-delay: 0.05s; /* Slight stagger effect */ }
+        
+        /* Reveal when hovering the zone OR when edit mode is active */
+        .controls-zone:hover .settings-btn,
+        body.widget-edit-mode .settings-btn {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
 
-        #editWidgetsBtn { bottom: 80px; }
+        /* Hover effects for individual buttons once visible */
+        .settings-btn:hover { background: rgba(30, 30, 40, 0.7); }
+        #mainSettingsBtn:hover svg { transform: rotate(45deg); }
         #editWidgetsBtn:hover svg { transform: scale(1.1); }
         body.widget-edit-mode #editWidgetsBtn { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.5); }
 
