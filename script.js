@@ -230,7 +230,7 @@ function loadWidgetSettings() {
             clockWidgetWindow.style.display = 'none';
         } else {
             clockWidgetWindow.style.display = 'block';
-            const defaultClockConfig = { xRatio: 0.5, yRatio: 0.2, timeformat: '24', design: 'knockout' };
+            const defaultClockConfig = { xRatio: 0.5, yRatio: 0.2, timeformat: '24', design: 'card' };
             const clockConfig = JSON.parse(localStorage.getItem('sp_widget_clock_config') || JSON.stringify(defaultClockConfig));
 
             if (clockConfig.xRatio !== undefined) clockWidgetWindow.setAttribute('x-ratio', clockConfig.xRatio);
@@ -251,7 +251,7 @@ function loadWidgetSettings() {
             greetingWidgetWindow.style.display = 'none';
         } else {
             greetingWidgetWindow.style.display = 'block';
-            const defaultGreetingConfig = { xRatio: 0.5, yRatio: 0.1, username: 'Friend', design: 'knockout', textcolor: '#ffffff', fontsize: '3' };
+            const defaultGreetingConfig = { xRatio: 0.5, yRatio: 0.1, username: 'Friend', design: 'card', textcolor: '#ffffff', fontsize: '3' };
             const greetingConfig = JSON.parse(localStorage.getItem('sp_widget_greeting_config') || JSON.stringify(defaultGreetingConfig));
 
             if (greetingConfig.xRatio !== undefined) greetingWidgetWindow.setAttribute('x-ratio', greetingConfig.xRatio);
@@ -726,3 +726,30 @@ window.addEventListener('load', forceFocus);
 window.addEventListener('focus', forceFocus);
 
 loadSettings();
+
+// --- Idle Detection Logic ---
+let idleTimer;
+const IDLE_TIMEOUT = 5000; // 5 seconds of inactivity
+
+function resetIdleTimer() {
+    document.body.classList.remove('idle-mode');
+    clearTimeout(idleTimer);
+    
+    idleTimer = setTimeout(() => {
+        const isEditing = document.body.classList.contains('widget-edit-mode');
+        const isTyping = document.activeElement && document.activeElement.tagName === 'INPUT';
+        
+        // Only trigger the idle disappearance if the user is not editing or typing
+        if (!isEditing && !isTyping) {
+            document.body.classList.add('idle-mode');
+        }
+    }, IDLE_TIMEOUT);
+}
+
+// Listen for interactions to reset the timer
+['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
+    document.addEventListener(evt, resetIdleTimer, { passive: true });
+});
+
+// Kickstart the timer initially
+resetIdleTimer();

@@ -31,7 +31,7 @@
         .bg-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-size: cover; background-position: center; background-repeat: no-repeat;
-            transition: opacity 0.6s cubic-bezier(0.455, 0.03, 0.515, 0.955), filter 0.3s ease;
+            filter: blur(0px);
             opacity: 0; z-index: 1;
         }
         .bg-layer.active { opacity: 1; z-index: 2; }
@@ -47,7 +47,7 @@
         .logo {
             width: 120px; height: auto; margin-bottom: 40px;
             filter: drop-shadow(0 4px 15px rgba(0, 0, 0, 0.4));
-            user-select: none; -webkit-user-drag: none; transition: all 0.3s ease;
+            user-select: none; -webkit-user-drag: none;
         }
 
         .search-container { width: 100%; max-width: 600px; padding: 0 20px; box-sizing: border-box; position: relative; }
@@ -152,7 +152,6 @@
         .bookmark-item:hover { transform: translateY(-4px); background: rgba(30, 30, 40, 0.6); border-color: rgba(255, 255, 255, 0.3); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
         .bookmark-item img { width: 28px; height: 28px; object-fit: contain; border-radius: 6px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
 
-/* The invisible hover area */
         .controls-zone {
             position: fixed;
             bottom: 0;
@@ -168,20 +167,17 @@
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: flex;
             align-items: center; justify-content: center; cursor: pointer; padding: 0;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            
-            /* Hidden by default */
             opacity: 0;
             transform: translateY(15px);
             pointer-events: none;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Creates a subtle spring effect */
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         
         .settings-btn svg { width: 22px; height: 22px; fill: #ffffff; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transition: transform 0.3s ease;}
         
         #mainSettingsBtn { bottom: 24px; }
-        #editWidgetsBtn { bottom: 80px; transition-delay: 0.05s; /* Slight stagger effect */ }
+        #editWidgetsBtn { bottom: 80px; transition-delay: 0.05s; }
         
-        /* Reveal when hovering the zone OR when edit mode is active */
         .controls-zone:hover .settings-btn,
         body.widget-edit-mode .settings-btn {
             opacity: 1;
@@ -189,7 +185,6 @@
             pointer-events: auto;
         }
 
-        /* Hover effects for individual buttons once visible */
         .settings-btn:hover { background: rgba(30, 30, 40, 0.7); }
         #mainSettingsBtn:hover svg { transform: rotate(45deg); }
         #editWidgetsBtn:hover svg { transform: scale(1.1); }
@@ -198,6 +193,24 @@
         /* Error States */
         .error { border-color: #ff5555 !important; box-shadow: 0 0 15px rgba(255, 85, 85, 0.3) !important; }
         .error-text { color: #ff5555; font-size: 0.85rem; margin-top: -10px; margin-bottom: 16px; text-align: left; animation: fadeIn 0.2s ease; display: none; font-weight: 500; }
+
+        /* --- Idle State CSS --- */
+        .logo, .search-container, .bookmarks-container, .controls-zone {
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body.idle-mode {
+            cursor: none;
+        }
+
+        body.idle-mode .logo,
+        body.idle-mode .search-container,
+        body.idle-mode .bookmarks-container,
+        body.idle-mode .controls-zone {
+            opacity: 0 !important;
+            pointer-events: none;
+            transform: translateY(10px);
+        }
 
         /* Onboarding Flow Styles */
         .onboarding-overlay {
@@ -274,6 +287,7 @@
         <div id="bookmarksContainer" class="bookmarks-container"></div>
     </div>
 
+    <!-- Controls Hover Zone -->
     <div class="controls-zone">
         <!-- Edit Layout Button -->
         <button id="editWidgetsBtn" class="settings-btn" title="Edit Widget Layout">
@@ -365,7 +379,7 @@
                 <div style="text-align: left;">
                     <input type="text" id="obBm1" class="ob-input" placeholder="Site 1 URL (e.g. github.com)">
                     <input type="text" id="obBm2" class="ob-input" placeholder="Site 2 URL (e.g. youtube.com)">
-                    <input type="text" id="obBm3" class="ob-input" placeholder="Site 3 URL (e.g. riddle.com)">
+                    <input type="text" id="obBm3" class="ob-input" placeholder="Site 3 URL (e.g. reddit.com)">
                 </div>
 
                 <div class="ob-actions">
