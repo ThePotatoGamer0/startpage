@@ -10,6 +10,9 @@
     <script type="module" src="/components/widget-window.js"></script>
     <script type="module" src="/components/widget-clock.js"></script>
 
+    <!-- Compression Library for Sync -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100vh;
@@ -54,7 +57,7 @@
 
         .pane-title {
             font-size: 2rem; font-weight: bold; margin-bottom: 30px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center;
         }
         
         .pane-subtitle {
@@ -66,13 +69,15 @@
         .form-group { display: flex; flex-direction: column; margin-bottom: 24px; max-width: 600px;}
         .form-group label { margin-bottom: 8px; font-size: 0.95rem; color: rgba(255, 255, 255, 0.9); }
 
-        .form-input, .form-select {
+        .form-input, .form-select, .form-textarea {
             background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15);
             color: white; padding: 14px; border-radius: 12px; font-family: inherit; font-size: 1rem;
             outline: none; transition: border-color 0.2s, box-shadow 0.2s; width: 100%; box-sizing: border-box;
         }
 
-        .form-input:focus, .form-select:focus { 
+        .form-textarea { resize: vertical; min-height: 120px; font-family: monospace; font-size: 0.85rem; color: #4ade80;}
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus { 
             border-color: rgba(255, 255, 255, 0.5); box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
         }
         .form-select option { background: #1e1e28; color: white; }
@@ -157,6 +162,17 @@
         .btn-primary { background: white; color: black; border: none; }
         .btn-primary:hover { background: #e0e0e0; box-shadow: 0 4px 15px rgba(255,255,255,0.2); }
 
+        /* Sync Grid */
+        .sync-grid {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; margin-top: 20px;
+        }
+        .sync-card {
+            background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 16px;
+        }
+        .sync-card h3 { margin: 0; color: #fff; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;}
+        .sync-card h3 span { font-size: 0.8rem; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 8px; font-weight: normal; }
+
         /* Error States */
         .error { border-color: #ff5555 !important; box-shadow: 0 0 15px rgba(255, 85, 85, 0.3) !important; }
         .error-text { color: #ff5555; font-size: 0.85rem; margin-top: 8px; text-align: left; animation: fadeIn 0.2s ease; display: none; font-weight: 500; }
@@ -169,7 +185,7 @@
         .modal-overlay.show { opacity: 1; visibility: visible; }
         .modal-content {
             background: rgba(25, 25, 32, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 20px; padding: 32px; width: 90%; max-width: 500px; max-height: 85vh;
-            display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); transform: translateY(20px); transition: transform 0.3s ease;
+            display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); transform: translateY(20px); transition: transform 0.3s ease; overflow-y: auto;
         }
         .modal-overlay.show .modal-content { transform: translateY(0); }
         .modal-header { font-size: 1.5rem; margin-bottom: 24px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;}
@@ -188,7 +204,7 @@
         }
         .icon-item:hover, .icon-item.selected { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.6); transform: scale(1.05); }
         .icon-item img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
-        .modal-actions { display: flex; justify-content: flex-end; gap: 12px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;}
     </style>
 </head>
 <body>
@@ -196,10 +212,12 @@
         <aside class="sidebar">
             <div class="sidebar-header">Settings</div>
             <button class="tab-btn active" data-tab="general">General</button>
+            <button class="tab-btn" data-tab="idle">Idle Config</button>
             <button class="tab-btn" data-tab="wallpaper">Wallpaper</button>
             <button class="tab-btn" data-tab="widgets">Widgets</button>
             <button class="tab-btn" data-tab="search">Search & Aliases</button>
             <button class="tab-btn" data-tab="bookmarks">Bookmarks</button>
+            <button class="tab-btn" data-tab="sync">Sync Setup</button>
         </aside>
 
         <main class="main-content">
@@ -216,34 +234,45 @@
                 </div>
             </div>
 
+            <!-- New Idle Tab -->
+            <div id="idle" class="tab-pane">
+                <div class="pane-title">Idle Configuration</div>
+                <p style="color: rgba(255,255,255,0.6); margin-bottom: 24px;">Configure how your startpage behaves when you step away from your device.</p>
+                
+                <div class="form-group">
+                    <label for="idleTimeoutInput">Idle Timeout (seconds)</label>
+                    <input type="number" id="idleTimeoutInput" class="form-input" min="1" value="5">
+                </div>
+
+                <div class="checkbox-group" style="max-width: 600px;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="idleHideMouseToggle"> Hide Mouse Pointer
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="idleHideLogoToggle"> Hide Top Logo
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="idleHideSearchToggle"> Hide Searchbar & UI Elements
+                    </label>
+                </div>
+            </div>
+
             <!-- Wallpaper Tab -->
             <div id="wallpaper" class="tab-pane">
                 <div class="pane-title">Wallpaper Configuration</div>
-                
                 <div class="checkbox-group" style="margin-bottom: 24px;">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="bgWarpToggle"> Enable Kawarp Fluid Animation?
-                    </label>
-                    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-left: 30px;">
-                        Applies a smooth, WebGL liquid distortion effect to your background image.
-                    </div>
+                    <label class="checkbox-label"><input type="checkbox" id="bgWarpToggle"> Enable Kawarp Fluid Animation?</label>
+                    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-left: 30px;">Applies a smooth, WebGL liquid distortion effect.</div>
                 </div>
-                
                 <div id="customBgOptions">
                     <div class="form-group">
                         <label for="bgUrlInput">Custom Wallpaper URL</label>
                         <input type="text" id="bgUrlInput" class="form-input" placeholder="https://example.com/image.jpg">
                     </div>
-                    
                     <div class="checkbox-group" style="margin-bottom: 16px;">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="bgPollToggle"> Poll URL dynamically?
-                        </label>
-                        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-left: 30px;">
-                            Enable this if the URL changes periodically (like a weather radar or random image API).
-                        </div>
+                        <label class="checkbox-label"><input type="checkbox" id="bgPollToggle"> Poll URL dynamically?</label>
+                        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-left: 30px;">Enable this if the URL changes periodically.</div>
                     </div>
-
                     <div class="form-group" id="bgPollIntervalGroup" style="opacity: 0.5; pointer-events: none; transition: opacity 0.3s; margin-left: 30px;">
                         <label for="bgPollIntervalInput">Poll every _ seconds</label>
                         <input type="number" id="bgPollIntervalInput" class="form-input" min="1" value="60">
@@ -251,36 +280,21 @@
                 </div>
             </div>
 
-            <!-- New Dynamic Widgets Tab -->
+            <!-- Widgets Tab -->
             <div id="widgets" class="tab-pane">
                 <div class="pane-title">Widget Settings</div>
-                
                 <div class="checkbox-group" style="margin-bottom: 30px;">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="widgetsEnableToggle"> Enable Desktop Widgets
-                    </label>
-                    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-left: 30px;">
-                        When enabled, widgets will render on your startpage. You can drag them by clicking the layout button.
-                    </div>
+                    <label class="checkbox-label"><input type="checkbox" id="widgetsEnableToggle"> Enable Desktop Widgets</label>
                 </div>
-
                 <div style="display: flex; gap: 40px; margin-top: 20px;">
-                    <!-- Left: Dynamic Form Controls -->
                     <div style="flex: 1;">
                         <div class="form-group">
                             <label for="widgetSelect">Select Widget to Edit</label>
-                            <select id="widgetSelect" class="form-select">
-                                <!-- Populated dynamically by settings.js -->
-                            </select>
+                            <select id="widgetSelect" class="form-select"></select>
                         </div>
-                        
-                        <!-- Settings.js will build the inputs for the selected widget here -->
                         <div id="dynamicWidgetSettings"></div>
                     </div>
-                    
-                    <!-- Right: Live Component Preview -->
                     <div style="flex: 1; min-height: 300px; background: rgba(0,0,0,0.3); border: 1px dashed rgba(255,255,255,0.2); border-radius: 16px; display: flex; align-items: center; justify-content: center; position: relative;">
-                        <!-- The Web Component gets injected here scaled down -->
                         <div id="widgetPreviewContainer" style="transform: scale(0.9);"></div>
                     </div>
                 </div>
@@ -289,7 +303,6 @@
             <!-- Search Tab -->
             <div id="search" class="tab-pane">
                 <div class="pane-title">Search Configuration</div>
-                
                 <div class="form-group">
                     <label for="defaultProviderSelect">Default Search Engine</label>
                     <select id="defaultProviderSelect" class="form-select">
@@ -299,7 +312,6 @@
                         <option value="gemini">Gemini</option>
                     </select>
                 </div>
-                
                 <div class="form-group">
                     <label for="searchSuggestionSelect">Search Suggestion Behaviour</label>
                     <select id="searchSuggestionSelect" class="form-select">
@@ -312,11 +324,7 @@
                 </div>
 
                 <div class="pane-subtitle" style="margin-top: 50px;">Alias Engine</div>
-                <p style="color: rgba(255,255,255,0.6); margin-bottom: 24px;">Type a keyword to instantly redirect to a specific URL. Use <strong>%s</strong> in the URL to pass search queries.</p>
-                
-                <div class="alias-grid" id="aliasGrid">
-                    </div>
-
+                <div class="alias-grid" id="aliasGrid"></div>
                 <div style="display: flex; gap: 12px; max-width: 800px; align-items: flex-start;">
                     <div style="display:flex; flex-direction:column;">
                         <input type="text" id="newAliasKey" class="form-input" placeholder="Keyword (e.g. !yt)" style="width: 180px; font-family: monospace;">
@@ -331,8 +339,63 @@
             <!-- Bookmarks Tab -->
             <div id="bookmarks" class="tab-pane">
                 <div class="pane-title">Quick Bookmarks</div>
-                <p style="color: rgba(255,255,255,0.6); margin-bottom: 24px;">Drag and drop cards to reorder them.</p>
                 <div class="bookmark-grid" id="bookmarkGrid"></div>
+            </div>
+
+            <!-- New Sync Tab -->
+            <div id="sync" class="tab-pane">
+                <div class="pane-title">
+                    Sync & Backup
+                    <button id="syncInfoBtn" class="btn" style="padding: 8px 16px; font-size: 0.9rem; background: rgba(255,255,255,0.1);">What's the difference?</button>
+                </div>
+                <p style="color: rgba(255,255,255,0.6); margin-bottom: 24px;">Export or Import your current configuration to sync setups across devices seamlessly.</p>
+                
+                <div class="sync-grid">
+                    <!-- Method 1: Cloud Stash -->
+                    <div class="sync-card">
+                        <h3>Cloud Stash <span>Method 1</span></h3>
+                        <p style="font-size: 0.85rem; color: #aaa; margin: 0; min-height: 40px;">Generates a magic link and 6-character code securely stored in the cloud.</p>
+                        
+                        <div class="form-group" style="margin: 0;">
+                            <input type="text" id="syncShortIdInput" class="form-input" placeholder="Paste a Short ID...">
+                        </div>
+                        
+                        <div style="display: flex; gap: 8px; margin-top: auto;">
+                            <button id="syncExportCloudBtn" class="btn btn-primary" style="flex: 1; padding: 10px;">Export</button>
+                            <button id="syncImportCloudBtn" class="btn" style="flex: 1; padding: 10px;">Import</button>
+                        </div>
+                    </div>
+
+                    <!-- Method 2: Base64 String -->
+                    <div class="sync-card">
+                        <h3>Base64 Hash <span>Method 2</span></h3>
+                        <p style="font-size: 0.85rem; color: #aaa; margin: 0; min-height: 40px;">A long encrypted string for secure local storage without using a backend.</p>
+                        
+                        <div class="form-group" style="margin: 0;">
+                            <textarea id="syncBase64Input" class="form-textarea" placeholder="Paste Base64 Hash here..."></textarea>
+                        </div>
+                        
+                        <div style="display: flex; gap: 8px; margin-top: auto;">
+                            <button id="syncExportB64Btn" class="btn btn-primary" style="flex: 1; padding: 10px;">Generate</button>
+                            <button id="syncImportB64Btn" class="btn" style="flex: 1; padding: 10px;">Import</button>
+                        </div>
+                    </div>
+
+                    <!-- Method 3: Raw JSON -->
+                    <div class="sync-card">
+                        <h3>Raw JSON <span>Method 3</span></h3>
+                        <p style="font-size: 0.85rem; color: #aaa; margin: 0; min-height: 40px;">Uncompressed, human-readable settings payload. Great for manual edits.</p>
+                        
+                        <div class="form-group" style="margin: 0;">
+                            <textarea id="syncJsonInput" class="form-textarea" placeholder="Paste Raw JSON payload..."></textarea>
+                        </div>
+                        
+                        <div style="display: flex; gap: 8px; margin-top: auto;">
+                            <button id="syncExportJsonBtn" class="btn btn-primary" style="flex: 1; padding: 10px;">Generate</button>
+                            <button id="syncImportJsonBtn" class="btn" style="flex: 1; padding: 10px;">Import</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -342,29 +405,42 @@
         <button id="saveSettingsBtn" class="btn btn-primary">Save & Apply</button>
     </div>
 
+    <!-- Modals -->
     <div id="iconModal" class="modal-overlay">
         <div class="modal-content">
-            <div class="modal-header">
-                Choose Icon
-                <span id="closeIconModal" style="cursor:pointer; color:#aaa; font-size:1.5rem; line-height: 1;">&times;</span>
-            </div>
-            
-            <div class="form-group" style="margin-bottom: 12px; max-width: 100%;">
-                <label>Search SimpleIcons</label>
-                <input type="text" id="iconSearchInput" class="form-input" placeholder="e.g. github, netflix, docker...">
-            </div>
-
+            <div class="modal-header">Choose Icon<span id="closeIconModal" style="cursor:pointer; color:#aaa; font-size:1.5rem; line-height: 1;">&times;</span></div>
+            <div class="form-group" style="margin-bottom: 12px; max-width: 100%;"><label>Search SimpleIcons</label><input type="text" id="iconSearchInput" class="form-input" placeholder="e.g. github, netflix, docker..."></div>
             <div id="iconGridResults" class="icon-grid"></div>
-
-            <div class="form-group" style="max-width: 100%;">
-                <label>Or Paste Custom URL</label>
-                <input type="text" id="customIconInput" class="form-input" placeholder="https://...">
-            </div>
-
+            <div class="form-group" style="max-width: 100%;"><label>Or Paste Custom URL</label><input type="text" id="customIconInput" class="form-input" placeholder="https://..."></div>
             <div class="modal-actions">
                 <button id="clearIconBtn" class="btn" style="margin-right: auto; color: #ff5555; border-color: rgba(255, 85, 85, 0.5);">Clear Custom</button>
                 <button id="cancelIconBtn" class="btn">Cancel</button>
                 <button id="applyIconBtn" class="btn btn-primary">Apply Icon</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="syncInfoModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">Sync Methods Explained<span id="closeSyncModal" style="cursor:pointer; color:#aaa; font-size:1.5rem; line-height: 1;">&times;</span></div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #4ade80; margin-bottom: 4px;">Method 1: Cloud Stash (Short ID)</h3>
+                <p style="font-size: 0.95rem; color: #bbb; margin-top: 0;">This sends a compressed copy of your setup securely to the cloud. It returns a short, random 6-character ID and a "magic link" that you can send directly to another device to load the UI instantly.</p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #4ade80; margin-bottom: 4px;">Method 2: Base64 Hash</h3>
+                <p style="font-size: 0.95rem; color: #bbb; margin-top: 0;">Converts your setup into a massively compressed string block. It is entirely offline and <strong>does not use your backend server</strong>. It is completely foolproof, but the resulting code block can be long and somewhat annoying to copy over a chat app on mobile.</p>
+            </div>
+
+            <div>
+                <h3 style="color: #4ade80; margin-bottom: 4px;">Method 3: Raw JSON</h3>
+                <p style="font-size: 0.95rem; color: #bbb; margin-top: 0;">Exports a standard, unencrypted JSON structure. This is ideal if you want to visually inspect, modify, or manually script changes to your configuration layout before importing.</p>
+            </div>
+
+            <div class="modal-actions">
+                <button id="dismissSyncModal" class="btn btn-primary">Got it</button>
             </div>
         </div>
     </div>

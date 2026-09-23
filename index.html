@@ -10,6 +10,9 @@
     <script type="module" src="components/widget-window.js"></script>
     <script type="module" src="components/widget-clock.js"></script>
     <script type="module" src="components/widget-greeting.js"></script>
+    
+    <!-- Compression Library for Sync -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 
     <style>
         body, html {
@@ -48,9 +51,13 @@
             width: 120px; height: auto; margin-bottom: 40px;
             filter: drop-shadow(0 4px 15px rgba(0, 0, 0, 0.4));
             user-select: none; -webkit-user-drag: none;
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .search-container { width: 100%; max-width: 600px; padding: 0 20px; box-sizing: border-box; position: relative; }
+        .search-container { 
+            width: 100%; max-width: 600px; padding: 0 20px; box-sizing: border-box; position: relative; 
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
         .search-wrapper { position: relative; width: 100%; display: flex; align-items: center; z-index: 20; }
 
         .search-bar {
@@ -141,7 +148,10 @@
         .provider-dropdown li:hover { background: rgba(255, 255, 255, 0.1); }
         .provider-dropdown li img { width: 20px; height: 20px; object-fit: contain; }
 
-        .bookmarks-container { display: flex; justify-content: center; gap: 12px; margin-top: 32px; width: 100%; max-width: 600px; padding: 0 20px; box-sizing: border-box; min-height: 60px; }
+        .bookmarks-container { 
+            display: flex; justify-content: center; gap: 12px; margin-top: 32px; width: 100%; max-width: 600px; padding: 0 20px; box-sizing: border-box; min-height: 60px; 
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
         .bookmark-item {
             flex: 1; max-width: 60px; aspect-ratio: 1 / 1; border-radius: 16px; 
             background: rgba(30, 30, 40, 0.4); border: 1px solid rgba(255, 255, 255, 0.15);
@@ -153,12 +163,8 @@
         .bookmark-item img { width: 28px; height: 28px; object-fit: contain; border-radius: 6px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
 
         .controls-zone {
-            position: fixed;
-            bottom: 0;
-            right: 0;
-            width: 140px;
-            height: 180px;
-            z-index: 60;
+            position: fixed; bottom: 0; right: 0; width: 140px; height: 180px; z-index: 60;
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .settings-btn {
@@ -167,9 +173,7 @@
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: flex;
             align-items: center; justify-content: center; cursor: pointer; padding: 0;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            opacity: 0;
-            transform: translateY(15px);
-            pointer-events: none;
+            opacity: 0; transform: translateY(15px); pointer-events: none;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         
@@ -180,9 +184,7 @@
         
         .controls-zone:hover .settings-btn,
         body.widget-edit-mode .settings-btn {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
+            opacity: 1; transform: translateY(0); pointer-events: auto;
         }
 
         .settings-btn:hover { background: rgba(30, 30, 40, 0.7); }
@@ -194,22 +196,18 @@
         .error { border-color: #ff5555 !important; box-shadow: 0 0 15px rgba(255, 85, 85, 0.3) !important; }
         .error-text { color: #ff5555; font-size: 0.85rem; margin-top: -10px; margin-bottom: 16px; text-align: left; animation: fadeIn 0.2s ease; display: none; font-weight: 500; }
 
-        /* --- Idle State CSS --- */
-        .logo, .search-container, .bookmarks-container, .controls-zone {
-            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        /* --- Custom Idle State CSS --- */
+        body.is-idle.idle-hide-mouse { cursor: none; }
+        
+        body.is-idle.idle-hide-logo .logo { 
+            opacity: 0 !important; pointer-events: none; transform: translateY(10px); 
         }
-
-        body.idle-mode {
-            cursor: none;
-        }
-
-        body.idle-mode .logo,
-        body.idle-mode .search-container,
-        body.idle-mode .bookmarks-container,
-        body.idle-mode .controls-zone {
-            opacity: 0 !important;
-            pointer-events: none;
-            transform: translateY(10px);
+        
+        /* Note: pointer-events: none is NOT applied to search-container so typing still works fluidly */
+        body.is-idle.idle-hide-search .search-container,
+        body.is-idle.idle-hide-search .bookmarks-container,
+        body.is-idle.idle-hide-search .controls-zone {
+            opacity: 0 !important; transform: translateY(10px);
         }
 
         /* Onboarding Flow Styles */
@@ -267,7 +265,7 @@
         <form id="searchForm" class="search-container" action="https://www.startpage.com/sp/search" method="POST">
             <button type="submit" style="display: none;"></button>
             <div class="search-wrapper">
-                <div class="provider-toggle" id="providerToggle" title="Change Search Engine">
+                <div class="provider-toggle" id="providerToggle" title="Change Search Engine (Alt + S)">
                     <img id="activeProviderIcon" src="https://cdn.simpleicons.org/startpage/white" alt="Startpage">
                 </div>
                 <ul class="provider-dropdown" id="providerDropdown">
@@ -289,14 +287,12 @@
 
     <!-- Controls Hover Zone -->
     <div class="controls-zone">
-        <!-- Edit Layout Button -->
         <button id="editWidgetsBtn" class="settings-btn" title="Edit Widget Layout">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                 <path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"/>
             </svg>
         </button>
 
-        <!-- Settings Button -->
         <a href="/settings" id="mainSettingsBtn" class="settings-btn" title="Startpage Settings">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                 <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
@@ -304,17 +300,27 @@
         </a>
     </div>
 
+    <!-- Magic Link Confirmation Modal -->
+    <div id="magicLinkModal" class="onboarding-overlay">
+        <div class="onboarding-card">
+            <h2 style="margin-top: 0; color: #4ade80;">Import Setup?</h2>
+            <p style="color: rgba(255,255,255,0.7); margin-bottom: 24px;">You clicked a magic link to import a custom Startpage setup. This will overwrite your existing configuration.</p>
+            <p style="color: #ff5555; margin-bottom: 24px; font-weight: bold;">Are you sure you want to overwrite your current setup?</p>
+            <div class="ob-actions">
+                <button id="btnCancelMagicLink" class="btn-ob">Cancel</button>
+                <button id="btnConfirmMagicLink" class="btn-ob btn-ob-primary" style="background: #ff5555; color: white; border-color: #ff5555;">Overwrite Setup</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Setup Wizard Overlay -->
     <div id="onboardingOverlay" class="onboarding-overlay">
         <div class="onboarding-card">
-            
-            <!-- Step 1: Browser -->
             <div id="obStep1" class="ob-step active">
                 <h2 style="margin-top: 0;">Welcome to Startpage</h2>
                 <p style="color: rgba(255,255,255,0.7); margin-bottom: 24px;">Let's get things set up. We detected you are using <strong id="obBrowserName" style="color: #fff;">Unknown</strong>.</p>
                 <img id="obBrowserLogo" src="" alt="Browser Logo" style="width: 80px; height: 80px; margin-bottom: 24px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));">
                 <p style="margin-bottom: 24px;" id="obBrowserPromptText">Is this correct?</p>
-                
                 <div id="obBrowserManual" style="display: none; margin-bottom: 24px; text-align: left;">
                     <label style="display: block; font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 8px;">Select your browser:</label>
                     <select id="obBrowserSelect" class="ob-input">
@@ -330,64 +336,46 @@
                         <option value="browserlogos/vivaldi.svg">Vivaldi</option>
                         <option value="custom">Custom URL...</option>
                     </select>
-
                     <div id="obCustomUrlWrapper" style="display: none; margin-top: 16px;">
                         <label style="display: block; font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 8px;">Paste a custom logo URL:</label>
                         <input type="text" id="obCustomLogoUrl" class="ob-input" placeholder="https://example.com/logo.png" style="margin-bottom: 8px;">
-                        <p style="font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-top: 0; margin-bottom: 16px; line-height: 1.4;">
-                            Hint: Most browser logos can be found in SVG format on <a href="https://commons.wikimedia.org/wiki/Category:Logos_of_web_browsers" target="_blank" style="color: #4ade80; text-decoration: none;">Wikimedia Commons</a>.
-                        </p>
                     </div>
-
                     <button id="obBtnSaveCustomLogo" class="btn-ob btn-ob-primary" style="width: 100%; margin-top: 8px;">Save Logo</button>
                 </div>
-
                 <div class="ob-actions" id="obStep1Actions">
                     <button id="obBtnNo" class="btn-ob">No, change it</button>
                     <button id="obBtnYes" class="btn-ob btn-ob-primary">Yes, continue</button>
                 </div>
             </div>
-
-            <!-- Step 2: Wallpaper -->
             <div id="obStep2" class="ob-step">
                 <h2 style="margin-top: 0;">Make it yours</h2>
                 <p style="color: rgba(255,255,255,0.7); margin-bottom: 24px;">Set a custom wallpaper URL, adjust blur, or leave blank to use the default.</p>
-                
                 <div style="text-align: left;">
                     <input type="text" id="obWallpaperUrl" class="ob-input" placeholder="https://example.com/wallpaper.jpg">
-                    
                     <label style="display: block; font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 8px;">Background Blur (px):</label>
                     <input type="number" id="obBlurInput" class="ob-input" min="0" max="50" value="0">
-
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.9rem; color: rgba(255,255,255,0.8); margin-top: 8px;">
-                        <input type="checkbox" id="obWarpToggle" style="width: 16px; height: 16px;">
-                        Enable fluid Kawarp animation?
+                        <input type="checkbox" id="obWarpToggle" style="width: 16px; height: 16px;"> Enable fluid Kawarp animation?
                     </label>
                 </div>
-
                 <div class="ob-actions">
                     <button id="obBtnBack1" class="btn-ob">Back</button>
                     <button id="obBtnNext2" class="btn-ob btn-ob-primary">Next</button>
                 </div>
             </div>
-
-            <!-- Step 3: Bookmarks -->
             <div id="obStep3" class="ob-step">
                 <h2 style="margin-top: 0;">Quick Bookmarks</h2>
                 <p style="color: rgba(255,255,255,0.7); margin-bottom: 24px;">Add a few of your favorite sites to get started.</p>
-                
                 <div style="text-align: left;">
                     <input type="text" id="obBm1" class="ob-input" placeholder="Site 1 URL (e.g. github.com)">
                     <input type="text" id="obBm2" class="ob-input" placeholder="Site 2 URL (e.g. youtube.com)">
                     <input type="text" id="obBm3" class="ob-input" placeholder="Site 3 URL (e.g. reddit.com)">
                 </div>
-
                 <div class="ob-actions">
                     <button id="obBtnBack2" class="btn-ob">Back</button>
                     <button id="obBtnFinish" class="btn-ob btn-ob-primary">Finish Setup</button>
                 </div>
             </div>
-
         </div>
     </div>
 

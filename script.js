@@ -1,5 +1,58 @@
 import { Kawarp } from 'https://cdn.jsdelivr.net/npm/@kawarp/core@1/+esm';
 
+// --- Magic Link Import Listener ---
+async function checkUrlImport() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const importId = urlParams.get('import');
+    
+    if (importId) {
+        const hasExistingSetup = localStorage.getItem('sp_onboarding_complete');
+
+        const performImport = async () => {
+            try {
+                document.body.innerHTML = `<div style="color:white; display:flex; height:100vh; align-items:center; justify-content:center; font-family:sans-serif; font-size:1.5rem;">Importing Setup...</div>`;
+                const res = await fetch(`https://startpage.jamesvauls52.workers.dev/api/import?id=${importId}`);
+                if (res.ok) {
+                    const dataText = await res.text();
+                    const decompressed = LZString.decompressFromEncodedURIComponent(dataText);
+                    if (decompressed) {
+                        const settings = JSON.parse(decompressed);
+                        for (const key in settings) {
+                            localStorage.setItem(key, settings[key]);
+                        }
+                        window.location.href = window.location.origin;
+                        return;
+                    }
+                }
+                alert("Failed to import. The setup ID may be invalid or expired.");
+                window.location.href = window.location.origin;
+            } catch (e) {
+                console.error("Import failed", e);
+                window.location.href = window.location.origin;
+            }
+        };
+
+        if (hasExistingSetup) {
+            const modal = document.getElementById('magicLinkModal');
+            modal.classList.add('show');
+            
+            document.getElementById('btnConfirmMagicLink').onclick = () => {
+                modal.classList.remove('show');
+                performImport();
+            };
+            
+            document.getElementById('btnCancelMagicLink').onclick = () => {
+                modal.classList.remove('show');
+                window.history.replaceState({}, document.title, window.location.pathname);
+            };
+        } else {
+            performImport();
+        }
+    }
+}
+checkUrlImport();
+
+
 const providers = {
     startpage: { name: "Startpage", action: "https://www.startpage.com/sp/search", method: "POST", inputName: "query", icon: "https://cdn.simpleicons.org/startpage/white" },
     google: { name: "Google", action: "https://www.google.com/search", method: "GET", inputName: "q", icon: "https://cdn.simpleicons.org/google/white" },
@@ -25,6 +78,21 @@ function setActiveProvider(key) {
 }
 
 dropdown.querySelectorAll('li').forEach(item => { item.addEventListener('click', (e) => { setActiveProvider(e.currentTarget.getAttribute('data-provider')); searchInput.focus(); }); });
+
+// --- Keyboard Shortcut: Alt + S ---
+document.addEventListener('keydown', (e) => {
+    if (e.altKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        const providerKeys = Object.keys(providers);
+        const currentAction = searchForm.action;
+        let currentIndex = providerKeys.findIndex(k => providers[k].action === currentAction);
+        let nextIndex = (currentIndex + 1) % providerKeys.length;
+        setActiveProvider(providerKeys[nextIndex]);
+        
+        dropdown.classList.add('show');
+        setTimeout(() => dropdown.classList.remove('show'), 800);
+    }
+});
 
 const suggestionsDropdown = document.getElementById('suggestionsDropdown');
 let suggestionDebounceTimer;
@@ -190,8 +258,6 @@ function renderBookmarks() {
     }
 }
 
-// --- Widget Logic ---
-
 const editWidgetsBtn = document.getElementById('editWidgetsBtn');
 const clockWidgetWindow = document.getElementById('clockWidgetWindow');
 const clockWidgetContent = document.getElementById('clockWidgetContent');
@@ -203,7 +269,6 @@ editWidgetsBtn.addEventListener('click', () => {
     document.body.classList.toggle('widget-edit-mode');
 });
 
-// Generic listener for saving any widget's position ratio
 document.addEventListener('widget-updated', (e) => {
     const windowId = e.detail.id;
     let configKey = null;
@@ -215,8 +280,7 @@ document.addEventListener('widget-updated', (e) => {
         const config = JSON.parse(localStorage.getItem(configKey) || '{}');
         config.xRatio = e.detail.xRatio;
         config.yRatio = e.detail.yRatio;
-        delete config.x;
-        delete config.y;
+        delete config.x; delete config.y;
         localStorage.setItem(configKey, JSON.stringify(config));
     }
 });
@@ -224,7 +288,6 @@ document.addEventListener('widget-updated', (e) => {
 function loadWidgetSettings() {
     const isWidgetsEnabled = localStorage.getItem('sp_widgets_enabled') !== 'false';
     
-    // 1. Load Clock Widget
     if (clockWidgetWindow && clockWidgetContent) {
         if (!isWidgetsEnabled) {
             clockWidgetWindow.style.display = 'none';
@@ -238,14 +301,12 @@ function loadWidgetSettings() {
             
             Object.keys(clockConfig).forEach(key => {
                 if (key !== 'xRatio' && key !== 'yRatio') {
-                    const val = clockConfig[key];
-                    clockWidgetContent.setAttribute(key, typeof val === 'object' ? JSON.stringify(val) : val);
+                    clockWidgetContent.setAttribute(key, typeof clockConfig[key] === 'object' ? JSON.stringify(clockConfig[key]) : clockConfig[key]);
                 }
             });
         }
     }
 
-    // 2. Load Greeting Widget
     if (greetingWidgetWindow && greetingWidgetContent) {
         if (!isWidgetsEnabled) {
             greetingWidgetWindow.style.display = 'none';
@@ -259,15 +320,13 @@ function loadWidgetSettings() {
             
             Object.keys(greetingConfig).forEach(key => {
                 if (key !== 'xRatio' && key !== 'yRatio') {
-                    const val = greetingConfig[key];
-                    greetingWidgetContent.setAttribute(key, typeof val === 'object' ? JSON.stringify(val) : val);
+                    greetingWidgetContent.setAttribute(key, typeof greetingConfig[key] === 'object' ? JSON.stringify(greetingConfig[key]) : greetingConfig[key]);
                 }
             });
         }
     }
 }
 
-// --- Validation Logic ---
 function showError(elementId, msg) {
     const el = document.getElementById(elementId);
     if (!el) return;
@@ -291,28 +350,20 @@ function clearError(elementId) {
 }
 
 document.addEventListener('input', (e) => {
-    if (e.target.classList && e.target.classList.contains('error')) {
-        clearError(e.target.id);
-    }
+    if (e.target.classList && e.target.classList.contains('error')) clearError(e.target.id);
 });
 
 async function validateUrlInput(url, type) {
     if (!url) return { valid: true };
-
     let parsedUrl;
-    try {
-        parsedUrl = new URL(url.startsWith('http') ? url : `https://${url}`);
-    } catch {
-        return { valid: false, msg: "That doesn't look like a valid link! Check for typos." };
-    }
+    try { parsedUrl = new URL(url.startsWith('http') ? url : `https://${url}`); } 
+    catch { return { valid: false, msg: "That doesn't look like a valid link! Check for typos." }; }
 
     if (!parsedUrl.hostname.includes('.') || parsedUrl.hostname.endsWith('.')) {
         return { valid: false, msg: "That link is missing a valid domain (like .com or .net)!" };
     }
 
-    if (type === 'link') {
-        return { valid: true };
-    }
+    if (type === 'link') return { valid: true };
 
     if (type === 'wallpaper') {
         try {
@@ -342,7 +393,6 @@ async function validateUrlInput(url, type) {
     return { valid: true };
 }
 
-// --- Background Logic ---
 const bg1 = document.getElementById('bg1'); 
 const bg2 = document.getElementById('bg2');
 const bgCanvas = document.getElementById('bg-canvas');
@@ -371,34 +421,14 @@ async function updateBackground(rawUrl, forceWarp = null) {
     const enableWarp = forceWarp !== null ? forceWarp : (localStorage.getItem('sp_bg_warp') === 'true');
 
     if (enableWarp) {
-        if (!kawarpInstance) {
-            kawarpInstance = new Kawarp(bgCanvas);
-            kawarpInstance.start(); 
-        }
-        
-        bg1.classList.remove('active');
-        bg2.classList.remove('active');
-        bgCanvas.classList.add('active');
-        
-        try {
-            await kawarpInstance.loadImage(url); 
-        } catch (error) {
-            console.error("Kawarp failed to load image:", error);
-        }
+        if (!kawarpInstance) { kawarpInstance = new Kawarp(bgCanvas); kawarpInstance.start(); }
+        bg1.classList.remove('active'); bg2.classList.remove('active'); bgCanvas.classList.add('active');
+        try { await kawarpInstance.loadImage(url); } catch (error) { console.error("Kawarp failed:", error); }
     } else {
-        if (kawarpInstance) {
-            kawarpInstance.stop();
-            kawarpInstance.dispose();
-            kawarpInstance = null;
-        }
-        
+        if (kawarpInstance) { kawarpInstance.stop(); kawarpInstance.dispose(); kawarpInstance = null; }
         bgCanvas.classList.remove('active');
-        
-        if (activeBg === 1) {
-            bg2.style.backgroundImage = `url('${url}')`; bg2.classList.add('active'); bg1.classList.remove('active'); activeBg = 2;
-        } else {
-            bg1.style.backgroundImage = `url('${url}')`; bg1.classList.add('active'); bg2.classList.remove('active'); activeBg = 1;
-        }
+        if (activeBg === 1) { bg2.style.backgroundImage = `url('${url}')`; bg2.classList.add('active'); bg1.classList.remove('active'); activeBg = 2; } 
+        else { bg1.style.backgroundImage = `url('${url}')`; bg1.classList.add('active'); bg2.classList.remove('active'); activeBg = 1; }
     }
 }
 
@@ -414,7 +444,6 @@ async function pollAndApplyCustomWallpaper(url, isPolled) {
         
         if (contentType && contentType.includes('application/json')) {
             const data = await res.json();
-            
             const findUrl = (obj) => {
                 let fallback = null;
                 const search = (node) => {
@@ -435,84 +464,60 @@ async function pollAndApplyCustomWallpaper(url, isPolled) {
                 };
                 return search(obj) || fallback;
             };
-            
             const extracted = findUrl(data);
             if (extracted) finalImageUrl = extracted;
         }
-    } catch (e) {
-        console.warn("Smart fetch failed, trying direct CSS injection...", e);
-    }
+    } catch (e) { console.warn("Smart fetch failed, trying direct CSS injection...", e); }
 
     updateBackground(finalImageUrl);
 }
 
-// --- Browser Detection Logic ---
 async function detectBrowser() {
-    const ua = navigator.userAgent;
-    let brands = [];
-    
-    if (navigator.userAgentData && navigator.userAgentData.brands) {
-        brands = navigator.userAgentData.brands.map(b => b.brand);
-    }
+    const ua = navigator.userAgent; let brands = [];
+    if (navigator.userAgentData && navigator.userAgentData.brands) brands = navigator.userAgentData.brands.map(b => b.brand);
 
-    if (brands.includes("Vivaldi") || window.vivaldi) {
-        return { name: "Vivaldi", logo: "browserlogos/vivaldi.svg" };
-    }
-    if (navigator.brave && await navigator.brave.isBrave()) {
-        return { name: "Brave", logo: "browserlogos/brave.svg" };
-    }
-    if (ua.includes("Firefox") || ua.includes("FxiOS") || ua.includes("LibreWolf")) {
-        return { name: "Firefox", logo: "chrome://branding/content/about-logo.png" };
-    }
-    if (ua.includes("Edition GX") || ua.includes("OPRGX")) {
-        return { name: "Opera GX", logo: "browserlogos/opera-gx.svg" };
-    }
-    if (ua.includes("OPR/") || ua.includes("Opera") || brands.includes("Opera")) {
-        return { name: "Opera", logo: "browserlogos/opera.svg" };
-    }
-    if (ua.includes("Edg/") || brands.includes("Microsoft Edge")) {
-        return { name: "Microsoft Edge", logo: "browserlogos/edge.svg" };
-    }
-    if (ua.includes("SamsungBrowser") || brands.includes("Samsung Internet")) {
-        return { name: "Samsung Internet", logo: "browserlogos/samsung-internet.svg" };
-    }
-    if (ua.includes("Safari") && !ua.includes("Chrome") && !ua.includes("Chromium")) {
-        return { name: "Safari", logo: "browserlogos/safari.svg" };
-    }
-    if (brands.includes("Google Chrome") || ua.includes("Chrome")) {
-        return { name: "Google Chrome", logo: "browserlogos/chrome.svg" };
-    }
-    if (brands.includes("Chromium")) {
-        return { name: "Chromium", logo: "browserlogos/chromium.svg" };
-    }
+    if (brands.includes("Vivaldi") || window.vivaldi) return { name: "Vivaldi", logo: "browserlogos/vivaldi.svg" };
+    if (navigator.brave && await navigator.brave.isBrave()) return { name: "Brave", logo: "browserlogos/brave.svg" };
+    if (ua.includes("Firefox") || ua.includes("FxiOS") || ua.includes("LibreWolf")) return { name: "Firefox", logo: "chrome://branding/content/about-logo.png" };
+    if (ua.includes("Edition GX") || ua.includes("OPRGX")) return { name: "Opera GX", logo: "browserlogos/opera-gx.svg" };
+    if (ua.includes("OPR/") || ua.includes("Opera") || brands.includes("Opera")) return { name: "Opera", logo: "browserlogos/opera.svg" };
+    if (ua.includes("Edg/") || brands.includes("Microsoft Edge")) return { name: "Microsoft Edge", logo: "browserlogos/edge.svg" };
+    if (ua.includes("SamsungBrowser") || brands.includes("Samsung Internet")) return { name: "Samsung Internet", logo: "browserlogos/samsung-internet.svg" };
+    if (ua.includes("Safari") && !ua.includes("Chrome") && !ua.includes("Chromium")) return { name: "Safari", logo: "browserlogos/safari.svg" };
+    if (brands.includes("Google Chrome") || ua.includes("Chrome")) return { name: "Google Chrome", logo: "browserlogos/chrome.svg" };
+    if (brands.includes("Chromium")) return { name: "Chromium", logo: "browserlogos/chromium.svg" };
     
     return { name: "Chromium Browser", logo: "browserlogos/chromium.svg" };
 }
 
 const mainLogo = document.getElementById('mainLogo');
 
+let idleTimeoutConfig = 5000;
+
 async function loadSettings() {
-    if (!localStorage.getItem('sp_onboarding_complete')) {
-        initOnboarding();
-        return;
-    }
+    if (!localStorage.getItem('sp_onboarding_complete')) { initOnboarding(); return; }
 
     const savedProvider = localStorage.getItem('sp_provider') || 'startpage';
     const savedBlur = localStorage.getItem('sp_blur') || '0';
     let savedLogo = localStorage.getItem('sp_logo');
     
-    if (!savedLogo) {
-        const detected = await detectBrowser();
-        savedLogo = detected.logo;
-    }
+    if (!savedLogo) { const detected = await detectBrowser(); savedLogo = detected.logo; }
 
     setActiveProvider(savedProvider);
     bg1.style.filter = `blur(${savedBlur}px)`; bg2.style.filter = `blur(${savedBlur}px)`;
     bgCanvas.style.filter = `blur(${savedBlur}px)`;
     mainLogo.src = savedLogo;
 
-    renderBookmarks();
-    loadWidgetSettings(); 
+    renderBookmarks(); loadWidgetSettings(); 
+
+    idleTimeoutConfig = parseInt(localStorage.getItem('sp_idle_timeout') || '5') * 1000;
+    const hideMouse = localStorage.getItem('sp_idle_hide_mouse') !== 'false';
+    const hideLogo = localStorage.getItem('sp_idle_hide_logo') !== 'false';
+    const hideSearch = localStorage.getItem('sp_idle_hide_search') !== 'false';
+
+    if (hideMouse) document.body.classList.add('idle-hide-mouse');
+    if (hideLogo) document.body.classList.add('idle-hide-logo');
+    if (hideSearch) document.body.classList.add('idle-hide-search');
 
     const customUrl = localStorage.getItem('sp_bg_url') || '';
     const pollBg = localStorage.getItem('sp_bg_poll') === 'true';
@@ -523,197 +528,99 @@ async function loadSettings() {
             pollAndApplyCustomWallpaper(customUrl, true);
             if (pollInterval > 0) {
                 clearInterval(customBgPollTimer);
-                customBgPollTimer = setInterval(() => {
-                    pollAndApplyCustomWallpaper(customUrl, true);
-                }, pollInterval * 1000);
+                customBgPollTimer = setInterval(() => { pollAndApplyCustomWallpaper(customUrl, true); }, pollInterval * 1000);
             }
-        } else {
-            updateBackground(customUrl);
-        }
+        } else { updateBackground(customUrl); }
     } else {
-        const defaultWallpaper = window.location.origin + '/wallpaper.png';
-        updateBackground(defaultWallpaper); 
+        updateBackground(window.location.origin + '/wallpaper.png'); 
     }
 }
 
-// --- Onboarding Wizard Logic ---
 async function initOnboarding() {
     const overlay = document.getElementById('onboardingOverlay');
-    const step1 = document.getElementById('obStep1');
-    const step2 = document.getElementById('obStep2');
-    const step3 = document.getElementById('obStep3');
-
-    const browserNameEl = document.getElementById('obBrowserName');
-    const browserLogoEl = document.getElementById('obBrowserLogo');
-    const browserSelect = document.getElementById('obBrowserSelect');
-    const customUrlWrapper = document.getElementById('obCustomUrlWrapper');
-    
-    const obBlurInput = document.getElementById('obBlurInput');
-    const obWallpaperUrl = document.getElementById('obWallpaperUrl');
-    const obWarpToggle = document.getElementById('obWarpToggle');
+    const step1 = document.getElementById('obStep1'); const step2 = document.getElementById('obStep2'); const step3 = document.getElementById('obStep3');
+    const browserNameEl = document.getElementById('obBrowserName'); const browserLogoEl = document.getElementById('obBrowserLogo');
+    const browserSelect = document.getElementById('obBrowserSelect'); const customUrlWrapper = document.getElementById('obCustomUrlWrapper');
+    const obBlurInput = document.getElementById('obBlurInput'); const obWallpaperUrl = document.getElementById('obWallpaperUrl'); const obWarpToggle = document.getElementById('obWarpToggle');
     
     updateBackground(window.location.origin + '/wallpaper.png');
-    
     const detected = await detectBrowser();
-    browserNameEl.innerText = detected.name;
-    browserLogoEl.src = detected.logo;
-    let chosenLogo = detected.logo;
-
+    browserNameEl.innerText = detected.name; browserLogoEl.src = detected.logo; let chosenLogo = detected.logo;
     overlay.classList.add('show');
 
     browserSelect.addEventListener('change', (e) => {
         const val = e.target.value;
-        if (val === 'custom') {
-            customUrlWrapper.style.display = 'block';
-        } else {
-            customUrlWrapper.style.display = 'none';
-            browserLogoEl.src = val; 
-            chosenLogo = val;
-        }
+        if (val === 'custom') { customUrlWrapper.style.display = 'block'; } 
+        else { customUrlWrapper.style.display = 'none'; browserLogoEl.src = val; chosenLogo = val; }
     });
 
     obBlurInput.addEventListener('input', (e) => {
         const blurValue = e.target.value || '0';
-        bg1.style.filter = `blur(${blurValue}px)`;
-        bg2.style.filter = `blur(${blurValue}px)`;
-        bgCanvas.style.filter = `blur(${blurValue}px)`;
+        bg1.style.filter = `blur(${blurValue}px)`; bg2.style.filter = `blur(${blurValue}px)`; bgCanvas.style.filter = `blur(${blurValue}px)`;
     });
 
     const updatePreview = async () => {
-        const bgUrl = obWallpaperUrl.value.trim();
-        const enableWarp = obWarpToggle.checked;
-
+        const bgUrl = obWallpaperUrl.value.trim(); const enableWarp = obWarpToggle.checked;
         if (bgUrl) {
             const check = await validateUrlInput(bgUrl, 'wallpaper');
-            if (!check.valid) {
-                showError('obWallpaperUrl', check.msg);
-                return;
-            }
+            if (!check.valid) { showError('obWallpaperUrl', check.msg); return; }
             clearError('obWallpaperUrl');
-        } else {
-            clearError('obWallpaperUrl');
-        }
-
+        } else { clearError('obWallpaperUrl'); }
         updateBackground(bgUrl || (window.location.origin + '/wallpaper.png'), enableWarp);
     };
 
     obWallpaperUrl.addEventListener('input', debouncePreview(updatePreview, 600));
     obWarpToggle.addEventListener('change', updatePreview);
 
-    document.getElementById('obBtnYes').onclick = () => {
-        localStorage.setItem('sp_logo', chosenLogo);
-        step1.classList.remove('active');
-        step2.classList.add('active');
-        overlay.classList.add('preview-mode');
-    };
-
+    document.getElementById('obBtnYes').onclick = () => { localStorage.setItem('sp_logo', chosenLogo); step1.classList.remove('active'); step2.classList.add('active'); overlay.classList.add('preview-mode'); };
     document.getElementById('obBtnNo').onclick = () => {
-        document.getElementById('obBrowserPromptText').style.display = 'none';
-        document.getElementById('obStep1Actions').style.display = 'none';
-        document.getElementById('obBrowserManual').style.display = 'block';
-        
-        const options = Array.from(browserSelect.options);
-        const match = options.find(opt => opt.value === chosenLogo);
-        if (match) browserSelect.value = chosenLogo;
+        document.getElementById('obBrowserPromptText').style.display = 'none'; document.getElementById('obStep1Actions').style.display = 'none'; document.getElementById('obBrowserManual').style.display = 'block';
+        const match = Array.from(browserSelect.options).find(opt => opt.value === chosenLogo); if (match) browserSelect.value = chosenLogo;
     };
-
     document.getElementById('obBtnSaveCustomLogo').onclick = async () => {
         const btn = document.getElementById('obBtnSaveCustomLogo');
         if (browserSelect.value === 'custom') {
             const customUrl = document.getElementById('obCustomLogoUrl').value.trim();
             if (customUrl) {
-                const orig = btn.innerText;
-                btn.innerText = "Checking...";
+                const orig = btn.innerText; btn.innerText = "Checking...";
                 const check = await validateUrlInput(customUrl, 'logo');
                 btn.innerText = orig;
-                if (!check.valid) {
-                    showError('obCustomLogoUrl', check.msg);
-                    return;
-                }
+                if (!check.valid) { showError('obCustomLogoUrl', check.msg); return; }
                 chosenLogo = customUrl;
             }
         }
-        localStorage.setItem('sp_logo', chosenLogo);
-        step1.classList.remove('active');
-        step2.classList.add('active');
-        overlay.classList.add('preview-mode');
+        localStorage.setItem('sp_logo', chosenLogo); step1.classList.remove('active'); step2.classList.add('active'); overlay.classList.add('preview-mode');
     };
 
-    document.getElementById('obBtnBack1').onclick = () => {
-        step2.classList.remove('active');
-        step1.classList.add('active');
-        overlay.classList.remove('preview-mode');
-    };
-
+    document.getElementById('obBtnBack1').onclick = () => { step2.classList.remove('active'); step1.classList.add('active'); overlay.classList.remove('preview-mode'); };
     document.getElementById('obBtnNext2').onclick = async () => {
-        const bgUrl = obWallpaperUrl.value.trim();
-        const enableWarp = obWarpToggle.checked;
-        const blurVal = obBlurInput.value || '0';
-
+        const bgUrl = obWallpaperUrl.value.trim(); const enableWarp = obWarpToggle.checked; const blurVal = obBlurInput.value || '0';
         if (bgUrl) {
-            const btn = document.getElementById('obBtnNext2');
-            const orig = btn.innerText;
-            btn.innerText = "Checking...";
+            const btn = document.getElementById('obBtnNext2'); const orig = btn.innerText; btn.innerText = "Checking...";
             const check = await validateUrlInput(bgUrl, 'wallpaper');
-            btn.innerText = orig;
-            if (!check.valid) {
-                showError('obWallpaperUrl', check.msg);
-                return;
-            }
+            btn.innerText = orig; if (!check.valid) { showError('obWallpaperUrl', check.msg); return; }
             localStorage.setItem('sp_bg_url', bgUrl);
-        } else {
-            localStorage.removeItem('sp_bg_url');
-        }
-
-        localStorage.setItem('sp_bg_warp', enableWarp);
-        localStorage.setItem('sp_blur', blurVal);
-
+        } else { localStorage.removeItem('sp_bg_url'); }
+        localStorage.setItem('sp_bg_warp', enableWarp); localStorage.setItem('sp_blur', blurVal);
         updateBackground(bgUrl || (window.location.origin + '/wallpaper.png'));
-
-        step2.classList.remove('active');
-        step3.classList.add('active');
-        overlay.classList.remove('preview-mode');
+        step2.classList.remove('active'); step3.classList.add('active'); overlay.classList.remove('preview-mode');
     };
 
-    document.getElementById('obBtnBack2').onclick = () => {
-        step3.classList.remove('active');
-        step2.classList.add('active');
-        overlay.classList.add('preview-mode');
-    };
-
+    document.getElementById('obBtnBack2').onclick = () => { step3.classList.remove('active'); step2.classList.add('active'); overlay.classList.add('preview-mode'); };
     document.getElementById('obBtnFinish').onclick = async () => {
-        const bms = ['obBm1', 'obBm2', 'obBm3'];
-        let hasError = false;
-
-        const btn = document.getElementById('obBtnFinish');
-        const orig = btn.innerText;
-        btn.innerText = "Validating...";
-
+        const bms = ['obBm1', 'obBm2', 'obBm3']; let hasError = false;
+        const btn = document.getElementById('obBtnFinish'); const orig = btn.innerText; btn.innerText = "Validating...";
         for (let id of bms) {
             const val = document.getElementById(id).value.trim();
             if (val) {
                 const check = await validateUrlInput(val, 'link');
-                if (!check.valid) {
-                    showError(id, check.msg);
-                    hasError = true;
-                }
+                if (!check.valid) { showError(id, check.msg); hasError = true; }
             }
         }
-
-        btn.innerText = orig;
-        if (hasError) return;
-
-        const bm1 = document.getElementById('obBm1').value.trim();
-        const bm2 = document.getElementById('obBm2').value.trim();
-        const bm3 = document.getElementById('obBm3').value.trim();
-
-        if (bm1) localStorage.setItem('sp_bm1_url', bm1);
-        if (bm2) localStorage.setItem('sp_bm2_url', bm2);
-        if (bm3) localStorage.setItem('sp_bm3_url', bm3);
-
-        localStorage.setItem('sp_onboarding_complete', 'true');
-        overlay.classList.remove('show');
-        loadSettings();
+        btn.innerText = orig; if (hasError) return;
+        const bm1 = document.getElementById('obBm1').value.trim(); const bm2 = document.getElementById('obBm2').value.trim(); const bm3 = document.getElementById('obBm3').value.trim();
+        if (bm1) localStorage.setItem('sp_bm1_url', bm1); if (bm2) localStorage.setItem('sp_bm2_url', bm2); if (bm3) localStorage.setItem('sp_bm3_url', bm3);
+        localStorage.setItem('sp_onboarding_complete', 'true'); overlay.classList.remove('show'); loadSettings();
     };
 }
 
@@ -727,29 +634,32 @@ window.addEventListener('focus', forceFocus);
 
 loadSettings();
 
-// --- Idle Detection Logic ---
+// --- Dynamic Idle Detection Logic ---
 let idleTimer;
-const IDLE_TIMEOUT = 5000; // 5 seconds of inactivity
 
 function resetIdleTimer() {
-    document.body.classList.remove('idle-mode');
+    document.body.classList.remove('is-idle');
     clearTimeout(idleTimer);
     
     idleTimer = setTimeout(() => {
         const isEditing = document.body.classList.contains('widget-edit-mode');
-        const isTyping = document.activeElement && document.activeElement.tagName === 'INPUT';
-        
-        // Only trigger the idle disappearance if the user is not editing or typing
-        if (!isEditing && !isTyping) {
-            document.body.classList.add('idle-mode');
+        if (!isEditing) {
+            document.body.classList.add('is-idle');
         }
-    }, IDLE_TIMEOUT);
+    }, idleTimeoutConfig);
 }
 
-// Listen for interactions to reset the timer
-['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
+document.addEventListener('keydown', (e) => {
+    resetIdleTimer();
+    
+    const isTypingChar = e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey;
+    if (isTypingChar && document.activeElement !== searchInput) {
+        searchInput.focus();
+    }
+}, { passive: true });
+
+['mousemove', 'mousedown', 'touchstart', 'scroll', 'click'].forEach(evt => {
     document.addEventListener(evt, resetIdleTimer, { passive: true });
 });
 
-// Kickstart the timer initially
 resetIdleTimer();
