@@ -6,12 +6,9 @@
     <title>New Tab</title>
     <link rel="icon" type="image/png" href="chrome://branding/content/about-logo.png">
     
-    <!-- Import our custom Native Web Components -->
     <script type="module" src="components/widget-window.js"></script>
     <script type="module" src="components/widget-clock.js"></script>
     <script type="module" src="components/widget-greeting.js"></script>
-    
-    <!-- Compression Library for Sync -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 
     <style>
@@ -19,225 +16,101 @@
             margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: #000; overflow: hidden;
             font-family: 'Google Sans Flex', system-ui, -apple-system, sans-serif;
-            
-            /* Default widget edit state variables */
-            --widget-edit-opacity: 0;
-            --widget-edit-events: none;
+            --widget-edit-opacity: 0; --widget-edit-events: none;
         }
 
-        /* Toggle these variables when edit mode is active */
-        body.widget-edit-mode {
-            --widget-edit-opacity: 1;
-            --widget-edit-events: auto;
-        }
+        body.widget-edit-mode { --widget-edit-opacity: 1; --widget-edit-events: auto; }
 
         .bg-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-size: cover; background-position: center; background-repeat: no-repeat;
-            filter: blur(0px);
-            opacity: 0; z-index: 1;
+            filter: blur(0px); opacity: 0; z-index: 1;
         }
         .bg-layer.active { opacity: 1; z-index: 2; }
-
-        .content {
-            position: relative; z-index: 10; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; height: 100%; width: 100%; pointer-events: none;
-        }
         
-        /* Re-enable pointer events for interactive elements inside the content layer */
+        /* The transition only applies AFTER the initial page load so it fades during polling but doesn't flash black on boot */
+        body.ready .bg-layer { transition: opacity 1s ease; }
+
+        .content { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; pointer-events: none; }
         .content > * { pointer-events: auto; }
 
-        .logo {
-            width: 120px; height: auto; margin-bottom: 40px;
-            filter: drop-shadow(0 4px 15px rgba(0, 0, 0, 0.4));
-            user-select: none; -webkit-user-drag: none;
-            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .search-container { 
-            width: 100%; max-width: 600px; padding: 0 20px; box-sizing: border-box; position: relative; 
-            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+        .logo { width: 120px; height: auto; margin-bottom: 40px; filter: drop-shadow(0 4px 15px rgba(0, 0, 0, 0.4)); user-select: none; -webkit-user-drag: none; transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        .search-container { width: 100%; max-width: 600px; padding: 0 20px; box-sizing: border-box; position: relative; transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
         .search-wrapper { position: relative; width: 100%; display: flex; align-items: center; z-index: 20; }
 
-        .search-bar {
-            width: 100%; padding: 16px 28px 16px 60px; font-size: 1.2rem; color: #ffffff;
-            background: rgba(30, 30, 40, 0.4); border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 40px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            outline: none; transition: all 0.3s ease; font-family: inherit; box-sizing: border-box;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-        }
-
+        .search-bar { width: 100%; padding: 16px 28px 16px 60px; font-size: 1.2rem; color: #ffffff; background: rgba(30, 30, 40, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 40px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); outline: none; transition: all 0.3s ease; font-family: inherit; box-sizing: border-box; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); }
         .input-stack { position: relative; width: 100%; display: flex; }
-        
-        #autocompleteOverlay { 
-            position: absolute; top: 0; left: 0; z-index: 1; 
-            color: rgba(255, 255, 255, 0.3); pointer-events: none; 
-        }
+        #autocompleteOverlay { position: absolute; top: 0; left: 0; z-index: 1; color: rgba(255, 255, 255, 0.3); pointer-events: none; }
         #autocompleteOverlay::placeholder { color: transparent; }
-        
-        #searchInput { 
-            position: relative; z-index: 2; 
-            background: transparent !important; backdrop-filter: none !important; 
-            -webkit-backdrop-filter: none !important; box-shadow: none !important; 
-            border-color: transparent !important; 
-        }
+        #searchInput { position: relative; z-index: 2; background: transparent !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; box-shadow: none !important; border-color: transparent !important; }
         #searchInput::placeholder { color: rgba(255, 255, 255, 0.6); }
 
-        .input-stack:has(#searchInput:focus) #autocompleteOverlay { 
-            background: rgba(30, 30, 40, 0.6); border-color: rgba(255, 255, 255, 0.3); box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4); 
-        }
-        .input-stack:has(#searchInput.has-suggestions) #autocompleteOverlay { 
-            border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; 
-        }
-        .input-stack:has(#searchInput.error-state) #autocompleteOverlay { 
-            border-color: rgba(255, 85, 85, 0.5); background: rgba(40, 20, 20, 0.6); 
-        }
+        .input-stack:has(#searchInput:focus) #autocompleteOverlay { background: rgba(30, 30, 40, 0.6); border-color: rgba(255, 255, 255, 0.3); box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4); }
+        .input-stack:has(#searchInput.has-suggestions) #autocompleteOverlay { border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
+        .input-stack:has(#searchInput.error-state) #autocompleteOverlay { border-color: rgba(255, 85, 85, 0.5); background: rgba(40, 20, 20, 0.6); }
         #searchInput.error-state { color: #ff5555; font-family: monospace; }
 
-        .suggestions-dropdown {
-            position: absolute; top: 100%; left: 20px; right: 20px; margin-top: -12px;
-            background: rgba(30, 30, 40, 0.6); border: 1px solid rgba(255, 255, 255, 0.15);
-            border-top: none; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); overflow: hidden;
-            opacity: 0; visibility: hidden; transition: all 0.2s ease; z-index: 19;
-            padding-top: 16px;
-        }
+        .suggestions-dropdown { position: absolute; top: 100%; left: 20px; right: 20px; margin-top: -12px; background: rgba(30, 30, 40, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); border-top: none; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); overflow: hidden; opacity: 0; visibility: hidden; transition: all 0.2s ease; z-index: 19; padding-top: 16px; }
         .suggestions-dropdown.show { opacity: 1; visibility: visible; }
-        .suggestion-item {
-            padding: 12px 24px; color: rgba(255,255,255,0.8); font-size: 1.05rem;
-            cursor: pointer; transition: background 0.2s, color 0.2s;
-            display: flex; align-items: center; gap: 12px;
-        }
+        .suggestion-item { padding: 12px 24px; color: rgba(255,255,255,0.8); font-size: 1.05rem; cursor: pointer; transition: background 0.2s, color 0.2s; display: flex; align-items: center; gap: 12px; }
         .suggestion-item svg { width: 16px; height: 16px; opacity: 0.5; }
-        .suggestion-item:hover, .suggestion-item.selected {
-            background: rgba(255, 255, 255, 0.1); color: #fff;
-        }
+        .suggestion-item:hover, .suggestion-item.selected { background: rgba(255, 255, 255, 0.1); color: #fff; }
 
         @property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
-        .search-wrapper:has(#searchInput.loading)::before,
-        .search-wrapper:has(#searchInput.loading)::after {
-            content: ''; position: absolute; inset: 0; border-radius: 40px; 
-            background: conic-gradient(from var(--angle), #1e1e1f, #8e918f, #e3e3e3, #8e918f, #1e1e1f);
-            animation: spin-grayscale 2.5s linear infinite; pointer-events: none;
-        }
-        .search-wrapper:has(#searchInput.loading)::before {
-            padding: 1.5px; -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor; mask-composite: exclude; z-index: 2; 
-        }
+        .search-wrapper:has(#searchInput.loading)::before, .search-wrapper:has(#searchInput.loading)::after { content: ''; position: absolute; inset: 0; border-radius: 40px; background: conic-gradient(from var(--angle), #1e1e1f, #8e918f, #e3e3e3, #8e918f, #1e1e1f); animation: spin-grayscale 2.5s linear infinite; pointer-events: none; }
+        .search-wrapper:has(#searchInput.loading)::before { padding: 1.5px; -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; z-index: 2; }
         .search-wrapper:has(#searchInput.loading)::after { filter: blur(12px); opacity: 0.35; z-index: -1; }
         @keyframes spin-grayscale { from { --angle: 0deg; } to { --angle: 360deg; } }
 
-        .provider-toggle {
-            position: absolute; left: 20px; width: 24px; height: 24px; cursor: pointer;
-            z-index: 25; display: flex; align-items: center; justify-content: center; transition: transform 0.2s ease;
-        }
+        .provider-toggle { position: absolute; left: 20px; width: 24px; height: 24px; cursor: pointer; z-index: 25; display: flex; align-items: center; justify-content: center; transition: transform 0.2s ease; }
         .provider-toggle:hover { transform: scale(1.1); }
         .provider-toggle img { width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
-
-        .provider-dropdown {
-            position: absolute; top: 60px; left: 0; background: rgba(30, 30, 40, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 16px;
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            list-style: none; padding: 8px 0; margin: 0; width: 180px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.3s ease; z-index: 30;
-        }
+        .provider-dropdown { position: absolute; top: 60px; left: 0; background: rgba(30, 30, 40, 0.7); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 16px; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); list-style: none; padding: 8px 0; margin: 0; width: 180px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.3s ease; z-index: 30; }
         .provider-dropdown.show { opacity: 1; visibility: visible; transform: translateY(0); }
         .provider-dropdown li { padding: 12px 20px; color: #fff; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background 0.2s ease; font-size: 1rem; }
         .provider-dropdown li:hover { background: rgba(255, 255, 255, 0.1); }
         .provider-dropdown li img { width: 20px; height: 20px; object-fit: contain; }
 
-        .bookmarks-container { 
-            display: flex; justify-content: center; gap: 12px; margin-top: 32px; width: 100%; max-width: 600px; padding: 0 20px; box-sizing: border-box; min-height: 60px; 
-            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .bookmark-item {
-            flex: 1; max-width: 60px; aspect-ratio: 1 / 1; border-radius: 16px; 
-            background: rgba(30, 30, 40, 0.4); border: 1px solid rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            display: flex; align-items: center; justify-content: center; text-decoration: none;
-            transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        }
+        .bookmarks-container { display: flex; justify-content: center; gap: 12px; margin-top: 32px; width: 100%; max-width: 600px; padding: 0 20px; box-sizing: border-box; min-height: 60px; transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        .bookmark-item { flex: 1; max-width: 60px; aspect-ratio: 1 / 1; border-radius: 16px; background: rgba(30, 30, 40, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; text-decoration: none; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); }
         .bookmark-item:hover { transform: translateY(-4px); background: rgba(30, 30, 40, 0.6); border-color: rgba(255, 255, 255, 0.3); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
         .bookmark-item img { width: 28px; height: 28px; object-fit: contain; border-radius: 6px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
 
-        .controls-zone {
-            position: fixed; bottom: 0; right: 0; width: 140px; height: 180px; z-index: 60;
-            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .settings-btn {
-            position: absolute; right: 24px; width: 44px; height: 44px;
-            background: rgba(30, 30, 40, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 50%;
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: flex;
-            align-items: center; justify-content: center; cursor: pointer; padding: 0;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            opacity: 0; transform: translateY(15px); pointer-events: none;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        
+        .controls-zone { position: fixed; bottom: 0; right: 0; width: 140px; height: 180px; z-index: 60; transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        .settings-btn { position: absolute; right: 24px; width: 44px; height: 44px; background: rgba(30, 30, 40, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 50%; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); opacity: 0; transform: translateY(15px); pointer-events: none; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .settings-btn svg { width: 22px; height: 22px; fill: #ffffff; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transition: transform 0.3s ease;}
         
-        #mainSettingsBtn { bottom: 24px; }
-        #editWidgetsBtn { bottom: 80px; transition-delay: 0.05s; }
-        
-        .controls-zone:hover .settings-btn,
-        body.widget-edit-mode .settings-btn {
-            opacity: 1; transform: translateY(0); pointer-events: auto;
-        }
-
+        #mainSettingsBtn { bottom: 24px; } #editWidgetsBtn { bottom: 80px; transition-delay: 0.05s; }
+        .controls-zone:hover .settings-btn, body.widget-edit-mode .settings-btn { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .settings-btn:hover { background: rgba(30, 30, 40, 0.7); }
         #mainSettingsBtn:hover svg { transform: rotate(45deg); }
         #editWidgetsBtn:hover svg { transform: scale(1.1); }
         body.widget-edit-mode #editWidgetsBtn { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.5); }
 
-        /* Error States */
         .error { border-color: #ff5555 !important; box-shadow: 0 0 15px rgba(255, 85, 85, 0.3) !important; }
         .error-text { color: #ff5555; font-size: 0.85rem; margin-top: -10px; margin-bottom: 16px; text-align: left; animation: fadeIn 0.2s ease; display: none; font-weight: 500; }
 
-        /* --- Custom Idle State CSS --- */
+        /* Idle State */
         body.is-idle.idle-hide-mouse { cursor: none; }
-        
-        body.is-idle.idle-hide-logo .logo { 
-            opacity: 0 !important; pointer-events: none; transform: translateY(10px); 
-        }
-        
-        /* Note: pointer-events: none is NOT applied to search-container so typing still works fluidly */
-        body.is-idle.idle-hide-search .search-container,
-        body.is-idle.idle-hide-search .bookmarks-container,
-        body.is-idle.idle-hide-search .controls-zone {
-            opacity: 0 !important; transform: translateY(10px);
-        }
+        body.is-idle.idle-hide-logo .logo { opacity: 0 !important; pointer-events: none; transform: translateY(10px); }
+        body.is-idle.idle-hide-search .search-container, body.is-idle.idle-hide-search .bookmarks-container, body.is-idle.idle-hide-search .controls-zone { opacity: 0 !important; transform: translateY(10px); }
 
-        /* Onboarding Flow Styles */
-        .onboarding-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
-            z-index: 1000; display: flex; align-items: center; justify-content: center;
-            opacity: 0; visibility: hidden; transition: opacity 0.4s ease, visibility 0.4s ease, background 0.4s ease, backdrop-filter 0.4s ease; color: white;
-        }
+        /* Sync Grid */
+        .sync-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-top: 20px; text-align: left; }
+        .sync-card { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+        .sync-card h3 { margin: 0; color: #fff; font-size: 1.1rem; }
+
+        /* Onboarding */
+        .onboarding-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 0.4s ease, visibility 0.4s ease, background 0.4s ease, backdrop-filter 0.4s ease; color: white; }
         .onboarding-overlay.show { opacity: 1; visibility: visible; }
         .onboarding-overlay.preview-mode { background: rgba(0,0,0,0.2); backdrop-filter: none; -webkit-backdrop-filter: none; }
-
-        .onboarding-card {
-            background: rgba(25, 25, 32, 0.95); border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 24px; padding: 40px; width: 90%; max-width: 500px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5); text-align: center; position: relative; overflow: hidden;
-        }
-        .ob-step { display: none; }
-        .ob-step.active { display: block; animation: fadeIn 0.3s ease; }
+        .onboarding-card { background: rgba(25, 25, 32, 0.95); border: 1px solid rgba(255,255,255,0.15); border-radius: 24px; padding: 40px; width: 90%; max-width: 500px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); text-align: center; position: relative; overflow: hidden; }
+        .ob-step { display: none; } .ob-step.active { display: block; animation: fadeIn 0.3s ease; }
         .ob-actions { display: flex; justify-content: center; gap: 16px; margin-top: 30px; }
-        .ob-input {
-            width: 100%; padding: 14px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 12px; color: white; font-family: inherit; font-size: 1rem; outline: none;
-            box-sizing: border-box; margin-bottom: 16px; transition: border-color 0.2s;
-        }
+        .ob-input { width: 100%; padding: 14px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; color: white; font-family: inherit; font-size: 1rem; outline: none; box-sizing: border-box; margin-bottom: 16px; transition: border-color 0.2s; }
         .ob-input option { background: #191920; color: white; }
         .ob-input:focus { border-color: rgba(255,255,255,0.5); }
-        .btn-ob {
-            background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: white; padding: 12px 28px;
-            border-radius: 50px; cursor: pointer; font-weight: bold; transition: all 0.2s; font-size: 1rem; font-family: inherit;
-        }
+        .btn-ob { background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: white; padding: 12px 28px; border-radius: 50px; cursor: pointer; font-weight: bold; transition: all 0.2s; font-size: 1rem; font-family: inherit; }
         .btn-ob:hover { background: rgba(255, 255, 255, 0.1); }
         .btn-ob-primary { background: white; color: black; border: none; }
         .btn-ob-primary:hover { background: #e0e0e0; }
@@ -251,17 +124,11 @@
     <canvas id="bg-canvas" class="bg-layer"></canvas>
 
     <!-- Widget Containers -->
-    <widget-window id="clockWidgetWindow">
-        <widget-clock id="clockWidgetContent" timeformat="24"></widget-clock>
-    </widget-window>
-
-    <widget-window id="greetingWidgetWindow">
-        <widget-greeting id="greetingWidgetContent" username="Friend"></widget-greeting>
-    </widget-window>
+    <widget-window id="clockWidgetWindow"><widget-clock id="clockWidgetContent" timeformat="24"></widget-clock></widget-window>
+    <widget-window id="greetingWidgetWindow"><widget-greeting id="greetingWidgetContent" username="Friend"></widget-greeting></widget-window>
 
     <div class="content">
         <img id="mainLogo" src="chrome://branding/content/about-logo.png" alt="Logo" class="logo">
-
         <form id="searchForm" class="search-container" action="https://www.startpage.com/sp/search" method="POST">
             <button type="submit" style="display: none;"></button>
             <div class="search-wrapper">
@@ -281,23 +148,13 @@
             </div>
             <div id="suggestionsDropdown" class="suggestions-dropdown"></div>
         </form>
-
         <div id="bookmarksContainer" class="bookmarks-container"></div>
     </div>
 
     <!-- Controls Hover Zone -->
     <div class="controls-zone">
-        <button id="editWidgetsBtn" class="settings-btn" title="Edit Widget Layout">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"/>
-            </svg>
-        </button>
-
-        <a href="/settings" id="mainSettingsBtn" class="settings-btn" title="Startpage Settings">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
-            </svg>
-        </a>
+        <button id="editWidgetsBtn" class="settings-btn" title="Edit Widget Layout"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"/></svg></button>
+        <a href="/settings" id="mainSettingsBtn" class="settings-btn" title="Startpage Settings"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg></a>
     </div>
 
     <!-- Magic Link Confirmation Modal -->
@@ -313,6 +170,36 @@
         </div>
     </div>
 
+    <!-- New Manual Import Overlay -->
+    <div id="obImportOverlay" class="onboarding-overlay">
+        <div class="onboarding-card" style="max-width: 750px;">
+            <h2 style="margin-top: 0;">Import Existing Setup</h2>
+            <p style="color: rgba(255,255,255,0.7); margin-bottom: 24px;">Already have a setup? Restore it using one of the sync methods below.</p>
+            
+            <div class="sync-grid">
+                <div class="sync-card">
+                    <h3 style="margin-top: 0;">Cloud Stash</h3>
+                    <input type="text" id="obSyncShortId" class="ob-input" placeholder="Short ID..." style="margin-bottom: 8px;">
+                    <button id="obSyncCloudBtn" class="btn-ob btn-ob-primary" style="width: 100%;">Import ID</button>
+                </div>
+                <div class="sync-card">
+                    <h3 style="margin-top: 0;">Base64 Hash</h3>
+                    <input type="text" id="obSyncB64" class="ob-input" placeholder="Paste Hash..." style="margin-bottom: 8px;">
+                    <button id="obSyncB64Btn" class="btn-ob btn-ob-primary" style="width: 100%;">Import Hash</button>
+                </div>
+                <div class="sync-card">
+                    <h3 style="margin-top: 0;">Raw JSON</h3>
+                    <input type="text" id="obSyncJson" class="ob-input" placeholder="Paste JSON..." style="margin-bottom: 8px;">
+                    <button id="obSyncJsonBtn" class="btn-ob btn-ob-primary" style="width: 100%;">Import JSON</button>
+                </div>
+            </div>
+
+            <div style="margin-top: 24px;">
+                <button id="obCloseImportBtn" class="btn-ob">Back</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Setup Wizard Overlay -->
     <div id="onboardingOverlay" class="onboarding-overlay">
         <div class="onboarding-card">
@@ -321,6 +208,7 @@
                 <p style="color: rgba(255,255,255,0.7); margin-bottom: 24px;">Let's get things set up. We detected you are using <strong id="obBrowserName" style="color: #fff;">Unknown</strong>.</p>
                 <img id="obBrowserLogo" src="" alt="Browser Logo" style="width: 80px; height: 80px; margin-bottom: 24px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));">
                 <p style="margin-bottom: 24px;" id="obBrowserPromptText">Is this correct?</p>
+                
                 <div id="obBrowserManual" style="display: none; margin-bottom: 24px; text-align: left;">
                     <label style="display: block; font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 8px;">Select your browser:</label>
                     <select id="obBrowserSelect" class="ob-input">
@@ -342,11 +230,17 @@
                     </div>
                     <button id="obBtnSaveCustomLogo" class="btn-ob btn-ob-primary" style="width: 100%; margin-top: 8px;">Save Logo</button>
                 </div>
+                
                 <div class="ob-actions" id="obStep1Actions">
                     <button id="obBtnNo" class="btn-ob">No, change it</button>
                     <button id="obBtnYes" class="btn-ob btn-ob-primary">Yes, continue</button>
                 </div>
+
+                <div style="margin-top: 32px; text-align: center;">
+                    <a href="#" id="obOpenImportBtn" style="color: rgba(255,255,255,0.5); text-decoration: underline; font-size: 0.9rem; transition: color 0.2s;">Import Setup Instead</a>
+                </div>
             </div>
+
             <div id="obStep2" class="ob-step">
                 <h2 style="margin-top: 0;">Make it yours</h2>
                 <p style="color: rgba(255,255,255,0.7); margin-bottom: 24px;">Set a custom wallpaper URL, adjust blur, or leave blank to use the default.</p>
@@ -363,6 +257,7 @@
                     <button id="obBtnNext2" class="btn-ob btn-ob-primary">Next</button>
                 </div>
             </div>
+
             <div id="obStep3" class="ob-step">
                 <h2 style="margin-top: 0;">Quick Bookmarks</h2>
                 <p style="color: rgba(255,255,255,0.7); margin-bottom: 24px;">Add a few of your favorite sites to get started.</p>
