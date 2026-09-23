@@ -10,5 +10,11 @@
     "directory": ".",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
-  }
+  },
+  "kv_namespaces": [
+    {
+      "binding": "STARTPAGE_KV",
+      "id": "713176a2ba1b40a7b2ce271a11ba3270"
+    }
+  ]
 }
